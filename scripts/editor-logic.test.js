@@ -106,6 +106,18 @@ assert.deepEqual(
   ["NEYMAR CHEGOU", "OLHA ESSE LANCE", "NINGUÉM SEGURA", "QUE JOGADA", "NO FINAL"]
 );
 
+const timedHook = L.scheduleWithHook(["VOCÊ SABIA", "A LUA", "NÃO TEM LUZ"], 30, 2);
+assert.equal(timedHook[0].start, 0);
+assert.ok(timedHook[0].end <= 2.05 && timedHook[0].end >= 1.2);
+assert.ok(timedHook[timedHook.length - 1].end >= 29);
+const fromWiki = L.factsFromSummary("Lua", "A Lua é o satélite natural da Terra. Ela não tem luz própria e reflete o Sol. A superfície tem crateras. As fases mudam ao longo do mês. A gravidade lá é menor.");
+assert.equal(fromWiki.hook, "VOCÊ SABIA");
+assert.equal(fromWiki.facts.length, 5);
+const post = L.fallbackPost("curiosidade", "Lua", "VOCÊ SABIA");
+assert.ok(post.tags.length >= 5 && post.tags.length <= 8);
+assert.ok(post.text.includes("Lua"));
+assert.equal(L.parsePost("Fatos sobre a Lua.\n#curiosidades #lua #fatos #aprenda #viral").tags.length, 5);
+
 assert.equal(L.PRESETS.futebol.fmt, "9:16");
 assert.equal(L.PRESETS.futebol.trans, "flash");
 assert.equal(L.PRESETS.curiosidade.effect, "zoom");

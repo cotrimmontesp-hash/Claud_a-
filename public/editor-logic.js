@@ -547,7 +547,73 @@ function blurFilter(W, H, speed, flash, effect, range) {
     return { filter: v.concat(a).join(";"), overlap: d * (durations.length - 1) };
   }
 
-  function encodeWavPcm(pcm, sampleRate) {
+  function scheduleWithHook(lines, total, hookSec) {
+  const list = (lines || []).map((s) => String(s || "").trim()).filter(Boolean).slice(0, 8);
+  const dur = Number(total);
+  if (!list.length || !(dur > 0.3)) return [];
+  const hookEnd = Math.min(Math.max(1.2, Number(hookSec) || 2), Math.max(1.2, dur * 0.45));
+  const out = [{ text: list[0], start: 0, end: round2(list.length === 1 ? dur : hookEnd) }];
+  const rest = list.slice(1);
+  if (!rest.length) return out;
+  const span = Math.max(0.3, dur - out[0].end);
+  const slot = span / rest.length;
+  rest.forEach((text, i) => {
+    const start = out[0].end + i * slot;
+    const end = i === rest.length - 1 ? dur : out[0].end + (i + 1) * slot;
+    out.push({ text, start: round2(start), end: round2(Math.max(start + 0.2, end)) });
+  });
+  return out;
+}
+
+function shortenWords(text, max) {
+  return String(text || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean).slice(0, max).join(" ");
+}
+
+function factsFromSummary(theme, extract) {
+  const clean = String(extract || "").replace(/\s+/g, " ").trim();
+  const sentences = clean.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter((s) => s.length > 25);
+  const facts = [];
+  for (const s of sentences) {
+    const short = shortenWords(s.replace(/[.!?]+$/, ""), 6);
+    if (short && !facts.some((f) => f.toLowerCase() === short.toLowerCase())) facts.push(short);
+    if (facts.length === 5) break;
+  }
+  const extra = ["VALE SABER", "OLHA SÓ", "QUASE NINGUÉM SABE", "E TEM MAIS", "NO FINAL"];
+  while (facts.length < 5) facts.push(extra[facts.length]);
+  return { hook: "VOCÊ SABIA", facts: facts.slice(0, 5) };
+}
+
+function fallbackPost(kind, subject, hook) {
+  const name = String(subject || "").trim() || "isso";
+  const h = String(hook || "").trim();
+  const slug = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 24);
+  const tag = slug ? "#" + slug : kind === "futebol" ? "#craque" : "#conhecimento";
+  if (kind === "futebol") {
+    return {
+      text: (h ? h + ". " : "") + "Os lances de " + name + " que você precisa ver.",
+      tags: ["#futebol", "#futeboltiktok", "#edits", "#skills", tag, "#gol", "#tiktokbrasil", "#viral"],
+    };
+  }
+  return {
+    text: (h ? h + ". " : "") + "Fatos sobre " + name + " que quase ninguém conta.",
+    tags: ["#curiosidades", "#vocesabia", "#aprenda", "#fatos", tag, "#tiktok", "#interessante", "#viral"],
+  };
+}
+
+function parsePost(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return null;
+  const tags = raw.match(/#[\p{L}\p{N}_]+/gu) || [];
+  const unique = [];
+  tags.forEach((t) => {
+    if (!unique.some((u) => u.toLowerCase() === t.toLowerCase())) unique.push(t);
+  });
+  const body = raw.replace(/#[\p{L}\p{N}_]+/gu, "").replace(/\s+/g, " ").trim();
+  if (body.length < 8 || unique.length < 5) return null;
+  return { text: body, tags: unique.slice(0, 8) };
+}
+
+function encodeWavPcm(pcm, sampleRate) {
   const n = pcm.length;
   const buf = new ArrayBuffer(44 + n * 2);
   const v = new DataView(buf);
@@ -698,5 +764,9 @@ function planFootballEdit(clips, beatTimes, opts) {
     fallbackCaptions,
     parseCaptionLines,
     planFootballEdit,
+    scheduleWithHook,
+    factsFromSummary,
+    fallbackPost,
+    parsePost,
   };
 });
