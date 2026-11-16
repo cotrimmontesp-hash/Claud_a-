@@ -17,9 +17,22 @@ import { StatusBar } from "expo-status-bar";
 import * as Clipboard from "expo-clipboard";
 import * as Speech from "expo-speech";
 
-import { askNexa, Message, Mode } from "./api";
-import { Conversation, loadConversations, loadMode, saveConversations, saveMode } from "./storage";
+import { askNexa, Mode, updateMemory } from "./api";
+import {
+  ChatMessage,
+  Conversation,
+  DEFAULT_PROFILE,
+  Feedback,
+  Profile,
+  loadConversations,
+  loadMode,
+  loadProfile,
+  saveConversations,
+  saveMode,
+  saveProfile,
+} from "./storage";
 import Markdown from "./Markdown";
+import Settings from "./Settings";
 import { colors } from "./theme";
 
 const icon = require("../assets/icon.png");
@@ -54,6 +67,10 @@ function ChatScreen() {
   const [error, setError] = useState<string | null>(null);
   const [sideOpen, setSideOpen] = useState(false);
   const [listening, setListening] = useState(false);
+  const [profile, setProfile] = useState<Profile>(DEFAULT_PROFILE);
+  const [showSettings, setShowSettings] = useState(false);
+  const [learned, setLearned] = useState<string | null>(null);
+  const profileRef = useRef<Profile>(DEFAULT_PROFILE);
 
   const scrollRef = useRef<ScrollView>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -61,10 +78,13 @@ function ChatScreen() {
 
   useEffect(() => {
     (async () => {
-      const [c, m] = await Promise.all([loadConversations(), loadMode()]);
+      const [c, m, p] = await Promise.all([loadConversations(), loadMode(), loadProfile()]);
+      convsRef.current = c;
       setConvs(c);
       setCurrentId(c[0]?.id ?? null);
       setMode(m);
+      setProfile(p);
+      profileRef.current = p;
     })();
   }, []);
 
@@ -75,10 +95,59 @@ function ChatScreen() {
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
   }, []);
 
+  const convsRef = useRef<Conversation[]>([]);
   const persist = (next: Conversation[]) => {
+    convsRef.current = next;
     setConvs(next);
     saveConversations(next);
   };
+
+  const changeProfile = (p: Profile) => {
+    profileRef.current = p;
+    setProfile(p);
+    saveProfile(p);
+  };
+
+  // Depois de cada resposta, a IA decide se aprendeu algo novo sobre o usuário.
+  async function learnFrom(user: string, assistant: string) {
+    const p = profileRef.current;
+    if (!p.memoryOn) return;
+    const { add, remove } = await updateMemory(p.memories, user, assistant);
+    if (!add.length && !remove.length) return;
+    const latest = profileRef.current;
+    const kept = latest.memories.filter((m) => !remove.includes(m));
+    const fresh = add.filter((a) => !kept.some((k) => k.toLowerCase() === a.toLowerCase()));
+    if (!fresh.length && kept.length === latest.memories.length) return;
+    changeProfile({ ...latest, memories: [...kept, ...fresh].slice(-60) });
+    if (fresh.length) {
+      setLearned(fresh[0]);
+      setTimeout(() => setLearned(null), 4000);
+    }
+  }
+
+  function giveFeedback(index: number, fb: Feedback | undefined, reason?: string) {
+    const conv = convsRef.current.find((c) => c.id === currentId);
+    if (!conv) return;
+    const msg = conv.messages[index];
+    if (!msg || msg.role !== "assistant") return;
+    const messages = conv.messages.map((m, i) => (i === index ? { ...m, feedback: fb } : m));
+    persist(convsRef.current.map((c) => (c.id === conv.id ? { ...conv, messages } : c)));
+
+    const p = profileRef.current;
+    const sample = msg.content.replace(/\s+/g, " ").slice(0, 300);
+    if (fb === "up") {
+      changeProfile({ ...p, likes: [...p.likes.filter((l) => l !== sample), sample].slice(-3) });
+    } else if (fb === "down") {
+      const note = reason?.trim()
+        ? reason.trim().slice(0, 300)
+        : `Não curtiu uma resposta parecida com: "${sample.slice(0, 120)}..."`;
+      changeProfile({
+        ...p,
+        likes: p.likes.filter((l) => l !== sample),
+        dislikes: [...p.dislikes, note].slice(-20),
+      });
+    }
+  }
 
   async function send(textArg?: string) {
     if (busy) {
@@ -107,8 +176,9 @@ function ChatScreen() {
     let full = "";
     try {
       full = await askNexa(
-        conv.messages,
+        conv.messages.map(({ role, content }) => ({ role, content })),
         mode,
+        profileRef.current,
         (t) => {
           full = t;
           setStreaming(t);
@@ -130,6 +200,7 @@ function ChatScreen() {
         };
         list = [done, ...list.filter((c) => c.id !== done.id)];
         persist(list);
+        learnFrom(text, full);
       }
       scrollDown();
     }
@@ -184,7 +255,8 @@ function ChatScreen() {
     rec.start();
   }
 
-  const messages: Message[] = current?.messages ?? [];
+  const messages: ChatMessage[] = current?.messages ?? [];
+  const aiName = profile.assistantName.trim() || "Nexa";
   const showWelcome = !messages.length && !busy;
 
   const sidebar = (
@@ -212,7 +284,16 @@ function ChatScreen() {
           </Pressable>
         ))}
       </ScrollView>
-      <Text style={s.sideFoot}>Nexa IA • suas conversas ficam salvas só neste aparelho</Text>
+      <Pressable
+        style={s.sideSettings}
+        onPress={() => {
+          setSideOpen(false);
+          setShowSettings(true);
+        }}
+      >
+        <Text style={s.sideSettingsText}>⚙️ Personalidade e memória</Text>
+      </Pressable>
+      <Text style={s.sideFoot}>{aiName} • suas conversas ficam salvas só neste aparelho</Text>
     </View>
   );
 
@@ -234,8 +315,11 @@ function ChatScreen() {
             )}
             <View style={s.brand}>
               <Image source={icon} style={s.brandImg} />
-              <Text style={s.brandText}>Nexa</Text>
+              <Text style={s.brandText} numberOfLines={1}>{aiName}</Text>
             </View>
+            <Pressable style={s.iconBtn} onPress={() => setShowSettings(true)}>
+              <Text style={{ fontSize: 18 }}>⚙️</Text>
+            </Pressable>
             <View style={s.modeBox}>
               {(["rapida", "esperta"] as Mode[]).map((m) => (
                 <Pressable key={m} onPress={() => changeMode(m)} style={[s.modeBtn, mode === m && s.modeOn]}>
@@ -257,7 +341,9 @@ function ChatScreen() {
             {showWelcome ? (
               <View style={s.welcome}>
                 <Image source={icon} style={s.welcomeImg} />
-                <Text style={s.welcomeTitle}>Oi! Eu sou a Nexa 👋</Text>
+                <Text style={s.welcomeTitle}>
+                  {profile.userName.trim() ? `Oi, ${profile.userName.trim()}! ` : "Oi! "}Eu sou a {aiName} 👋
+                </Text>
                 <Text style={s.welcomeSub}>Pergunte, peça ideias, textos, roteiros… o que precisar.</Text>
                 <View style={s.chips}>
                   {SUGESTOES.map(([t, sub]) => (
@@ -274,7 +360,12 @@ function ChatScreen() {
                   m.role === "user" ? (
                     <UserBubble key={i} text={m.content} />
                   ) : (
-                    <BotBubble key={i} text={m.content} />
+                    <BotBubble
+                      key={i}
+                      text={m.content}
+                      feedback={m.feedback}
+                      onFeedback={(fb, reason) => giveFeedback(i, fb, reason)}
+                    />
                   )
                 )}
                 {busy && <BotBubble text={streaming || ""} loading />}
@@ -289,6 +380,12 @@ function ChatScreen() {
           </ScrollView>
 
           {/* Caixa de texto */}
+          {learned && (
+            <View style={s.toast}>
+              <Text style={s.toastText} numberOfLines={2}>🧠 Aprendi: {learned}</Text>
+            </View>
+          )}
+
           <View style={s.footer}>
             <View style={s.box}>
               <TextInput
@@ -320,7 +417,11 @@ function ChatScreen() {
       </View>
 
       {/* Menu lateral no celular */}
-      {!wide && sideOpen && (
+      {showSettings && (
+        <Settings profile={profile} onChange={changeProfile} onClose={() => setShowSettings(false)} />
+      )}
+
+      {!wide && sideOpen && !showSettings && (
         <View style={StyleSheet.absoluteFill}>
           <Pressable style={s.shade} onPress={() => setSideOpen(false)} />
           {sidebar}
@@ -340,8 +441,20 @@ function UserBubble({ text }: { text: string }) {
   );
 }
 
-function BotBubble({ text, loading }: { text: string; loading?: boolean }) {
+function BotBubble({
+  text,
+  loading,
+  feedback,
+  onFeedback,
+}: {
+  text: string;
+  loading?: boolean;
+  feedback?: Feedback;
+  onFeedback?: (fb: Feedback | undefined, reason?: string) => void;
+}) {
   const [copied, setCopied] = useState(false);
+  const [asking, setAsking] = useState(false);
+  const [reason, setReason] = useState("");
   return (
     <View style={s.botRow}>
       <Image source={icon} style={s.avatar} />
@@ -368,6 +481,58 @@ function BotBubble({ text, loading }: { text: string; loading?: boolean }) {
             >
               <Text style={s.toolText}>🔊 Ouvir</Text>
             </Pressable>
+            {onFeedback && (
+              <>
+                <Pressable
+                  style={[s.tool, feedback === "up" && s.toolOn]}
+                  onPress={() => {
+                    setAsking(false);
+                    onFeedback(feedback === "up" ? undefined : "up");
+                  }}
+                >
+                  <Text style={s.toolText}>👍</Text>
+                </Pressable>
+                <Pressable
+                  style={[s.tool, feedback === "down" && s.toolOn]}
+                  onPress={() => {
+                    if (feedback === "down") {
+                      onFeedback(undefined);
+                      setAsking(false);
+                    } else setAsking(true);
+                  }}
+                >
+                  <Text style={s.toolText}>👎</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        )}
+        {asking && onFeedback && (
+          <View style={s.fbBox}>
+            <Text style={s.fbTitle}>O que você não gostou? (opcional)</Text>
+            <TextInput
+              value={reason}
+              onChangeText={setReason}
+              placeholder="Ex.: muito longa, pouca ideia criativa…"
+              placeholderTextColor={colors.muted}
+              style={s.fbInput}
+              multiline
+            />
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <Pressable
+                style={s.fbSend}
+                onPress={() => {
+                  onFeedback("down", reason);
+                  setAsking(false);
+                  setReason("");
+                }}
+              >
+                <Text style={s.fbSendText}>Enviar</Text>
+              </Pressable>
+              <Pressable style={s.fbCancel} onPress={() => setAsking(false)}>
+                <Text style={s.toolText}>Cancelar</Text>
+              </Pressable>
+            </View>
           </View>
         )}
       </View>
@@ -400,7 +565,7 @@ const s = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   iconBtn: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  brand: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8 },
+  brand: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8 },
   brandImg: { width: 28, height: 28, borderRadius: 8 },
   brandText: { color: colors.text, fontWeight: "700", fontSize: 18 },
   modeBox: { flexDirection: "row", backgroundColor: colors.panel, borderRadius: 999, padding: 3 },
@@ -425,6 +590,36 @@ const s = StyleSheet.create({
   tools: { flexDirection: "row", gap: 6, marginTop: 8 },
   tool: { backgroundColor: colors.panel, borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8 },
   toolText: { color: colors.muted, fontSize: 12 },
+  toolOn: { backgroundColor: colors.panel2, borderWidth: 1, borderColor: colors.accent2 },
+  fbBox: { marginTop: 8, backgroundColor: colors.panel, borderRadius: 12, padding: 12, gap: 8 },
+  fbTitle: { color: colors.text, fontSize: 13, fontWeight: "600" },
+  fbInput: {
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    color: colors.text,
+    fontSize: 15,
+    padding: 10,
+    minHeight: 44,
+  },
+  fbSend: { backgroundColor: colors.accent2, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 16 },
+  fbSendText: { color: "#fff", fontWeight: "700" },
+  fbCancel: { borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12 },
+  toast: {
+    alignSelf: "center",
+    maxWidth: 520,
+    marginHorizontal: 12,
+    backgroundColor: colors.panel2,
+    borderWidth: 1,
+    borderColor: colors.accent2,
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  toastText: { color: colors.text, fontSize: 13 },
+  sideSettings: { padding: 12, borderRadius: 10, backgroundColor: colors.panel2, marginTop: 10 },
+  sideSettingsText: { color: colors.text, fontSize: 14, fontWeight: "600" },
 
   welcome: { alignItems: "center", paddingVertical: 30, paddingHorizontal: 8 },
   welcomeImg: { width: 72, height: 72, borderRadius: 20, marginBottom: 14 },

@@ -27,6 +27,9 @@ jobs:
       - name: Instalar dependências
         run: npm install --legacy-peer-deps
 
+      - name: Conferir o código (TypeScript)
+        run: npx tsc --noEmit
+
       - name: Gerar projeto Android
         run: npx expo prebuild --platform android --no-install
 
