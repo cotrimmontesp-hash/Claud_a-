@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "Nexa IA",
+    "slug": "claude-ia-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#12121c",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#12121c"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.claude.nexaia"
+    },
+    "android": {
+      "package": "com.claude.nexaia",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#12121c"
+      },
+      "softwareKeyboardLayoutMode": "resize"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png",
+      "name": "Nexa IA",
+      "shortName": "Nexa",
+      "themeColor": "#12121c",
+      "backgroundColor": "#12121c"
+    },
+    "extra": {
+      "apiUrl": "https://claude-ia-steel.vercel.app"
+    }
+  }
+}
