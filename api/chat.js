@@ -232,25 +232,60 @@ const decodeHtml = (t) =>
     .replace(/\s+/g, " ")
     .trim();
 
-async function searchDuck(q) {
-  const r = await fetch("https://html.duckduckgo.com/html/?kl=br-pt&q=" + encodeURIComponent(q), {
+async function searchNews(q) {
+  const r = await fetch(
+    "https://news.google.com/rss/search?hl=pt-BR&gl=BR&ceid=BR:pt-419&q=" + encodeURIComponent(q),
+    { headers: { "User-Agent": "Mozilla/5.0 NexaIA" }, signal: AbortSignal.timeout(8000) }
+  );
+  if (!r.ok) throw new Error("news " + r.status);
+  const xml = await r.text();
+  const items = [];
+  const re = /<item>([\s\S]*?)<\/item>/g;
+  let m;
+  while ((m = re.exec(xml)) && items.length < 6) {
+    const it = m[1];
+    const get = (tag) => {
+      const x = it.match(new RegExp("<" + tag + "[^>]*>([\\s\\S]*?)<\\/" + tag + ">"));
+      return x ? decodeHtml(x[1].replace(/<!\[CDATA\[|\]\]>/g, "")) : "";
+    };
+    const date = get("pubDate");
+    items.push({
+      title: get("title"),
+      url: get("link"),
+      snippet: (get("source") ? get("source") + " • " : "") + (date ? new Date(date).toLocaleDateString("pt-BR") : ""),
+    });
+  }
+  return items;
+}
+
+async function searchMojeek(q) {
+  const r = await fetch("https://www.mojeek.com/search?lb=pt&q=" + encodeURIComponent(q), {
     headers: { "User-Agent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130 Mobile Safari/537.36", "Accept-Language": "pt-BR,pt;q=0.9" },
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.timeout(7000),
   });
-  if (!r.ok) throw new Error("ddg " + r.status);
+  if (!r.ok) throw new Error("mojeek " + r.status);
   const html = await r.text();
   const out = [];
-  const re = /<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g;
+  const re = /<a class="title" href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<p class="s">([\s\S]*?)<\/p>/g;
   let m;
-  while ((m = re.exec(html)) && out.length < 6) {
-    let url = m[1];
-    const u = url.match(/uddg=([^&]+)/);
-    if (u) url = decodeURIComponent(u[1]);
-    if (url.startsWith("//")) url = "https:" + url;
-    if (/duckduckgo\.com\/y\.js/.test(url)) continue; // anúncio
-    out.push({ title: decodeHtml(m[2]), url, snippet: decodeHtml(m[3]) });
-  }
+  while ((m = re.exec(html)) && out.length < 5) out.push({ title: decodeHtml(m[2]), url: m[1], snippet: decodeHtml(m[3]) });
   return out;
+}
+
+async function searchQuotes(q) {
+  const pairs = [];
+  if (/d[óo]lar|usd/i.test(q)) pairs.push("USD-BRL");
+  if (/euro|eur\b/i.test(q)) pairs.push("EUR-BRL");
+  if (/bitcoin|btc/i.test(q)) pairs.push("BTC-BRL");
+  if (!pairs.length) return [];
+  const r = await fetch("https://economia.awesomeapi.com.br/json/last/" + pairs.join(","), { signal: AbortSignal.timeout(6000) });
+  if (!r.ok) return [];
+  const j = await r.json();
+  return Object.values(j).map((x) => ({
+    title: `Cotação ${x.name}`,
+    url: "https://economia.awesomeapi.com.br",
+    snippet: `Compra R$ ${x.bid} • Venda R$ ${x.ask} • Variação ${x.pctChange}% • Atualizado em ${x.create_date}`,
+  }));
 }
 
 async function searchWiki(q) {
@@ -267,14 +302,43 @@ async function searchWiki(q) {
   }));
 }
 
-async function webSearch(q) {
-  const query = q.replace(/\s+/g, " ").slice(0, 200);
-  const [duck, wiki] = await Promise.all([
-    searchDuck(query).catch((e) => (console.error("ddg fail", e.message), [])),
+// Transforma a pergunta em poucas palavras-chave de pesquisa.
+async function searchKeywords(prov, q) {
+  const fallback = q.replace(/[?!.]/g, " ").replace(/\s+/g, " ").slice(0, 120);
+  if (!prov.token) return fallback;
+  const out = await callModel(
+    prov,
+    prov.gemini ? GEMINI.rapida : CLAUDE.rapida,
+    {
+      stream: false,
+      max_tokens: 40,
+      messages: [{ role: "user", content: `Escreva só as palavras-chave (2 a 6 palavras, em português) para pesquisar isto no Google. Sem aspas, sem explicação.\n\n${q.slice(0, 500)}` }],
+    },
+    8000
+  );
+  if (!out.r) return fallback;
+  try {
+    const j = await out.r.json();
+    const t = (j.choices?.[0]?.message?.content || "").replace(/["\n]/g, " ").trim();
+    return t ? t.slice(0, 120) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+async function webSearch(prov, q) {
+  const query = await searchKeywords(prov, q);
+  console.log("search query", query);
+  const [quotes, news, web, wiki] = await Promise.all([
+    searchQuotes(q).catch(() => []),
+    searchNews(query).catch((e) => (console.error("news fail", e.message), [])),
+    searchMojeek(query).catch((e) => (console.error("mojeek fail", e.message), [])),
     searchWiki(query).catch(() => []),
   ]);
   const seen = new Set();
-  return [...duck, ...wiki].filter((x) => x.url && !seen.has(x.url) && seen.add(x.url)).slice(0, 7);
+  return [...quotes, ...news.slice(0, 4), ...web.slice(0, 3), ...wiki.slice(0, 1)]
+    .filter((x) => x.url && x.title && !seen.has(x.title) && seen.add(x.title))
+    .slice(0, 9);
 }
 
 // Modelos usados na pesquisa (o plano grátis só libera a pesquisa em alguns).
@@ -566,7 +630,7 @@ module.exports = async (req, res) => {
   const search = body.search === true || (body.search !== false && PRECISA_PESQUISA.test(lastUser));
   let results = [];
   if (search && !attachment) {
-    results = await webSearch(lastUser);
+    results = await webSearch(prov, lastUser);
     console.log("search", results.length, "resultados");
   }
   if (attachment) {
