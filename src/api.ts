@@ -1,6 +1,6 @@
 import { Platform } from "react-native";
 import { fetch as expoFetch } from "expo/fetch";
-import type { Profile } from "./storage";
+import { dislikeLabel, type Profile } from "./storage";
 import { nowLocal } from "./reminders";
 
 // No site, a API fica no mesmo endereço. No app (Android/iPhone), usa o endereço da Vercel.
@@ -22,7 +22,7 @@ function profileForServer(p: Profile) {
     emojis: p.emojis,
     custom: p.custom,
     memories: p.memoryOn ? p.memories : [],
-    dislikes: p.dislikes,
+    dislikes: p.dislikes.map(dislikeLabel),
     likes: p.likes,
     videoMode: p.videoMode,
     ...nowLocal(),
@@ -70,6 +70,11 @@ export async function askNexa(
     const { done, value } = await reader.read();
     if (done) break;
     full += decoder.decode(value, { stream: true });
+    onChunk(full);
+  }
+  const tail = decoder.decode();
+  if (tail) {
+    full += tail;
     onChunk(full);
   }
   return full;

@@ -10,6 +10,10 @@ A IA roda na função `api/chat.js` (Vercel). Hoje usa o Google Gemini grátis (
 
 Site: https://claude-ia-steel.vercel.app
 
+## Batida do editor
+
+No botão **Montar edit** ou **Montar curiosidade**, se a pessoa não escolher uma música, o editor cria no próprio aparelho uma batida sintética de cerca de 32 segundos (grave a 110–120 BPM). É uma onda gerada na hora, original deste app, sem amostra de música de terceiros e sem arquivo protegido no repositório.
+
 ## Gerar o APK
 1. Crie uma conta grátis em https://expo.dev
 2. No expo.dev, crie um projeto e conecte este repositório do GitHub

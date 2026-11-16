@@ -16,11 +16,11 @@ header h1{font-size:18px;flex:1}
 header a{color:var(--muted);text-decoration:none;font-size:14px;border:1px solid var(--border);padding:6px 12px;border-radius:999px}
 main{max-width:640px;margin:0 auto;padding:14px;display:flex;flex-direction:column;gap:14px}
 .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:14px}
-.card h2{font-size:15px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.card h2{font-size:15px;margin-bottom:10px}
 .muted{color:var(--muted);font-size:13px;line-height:1.45}
 label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
 input[type=text],input[type=number],textarea,select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font:inherit;font-size:16px;padding:10px 12px}
-textarea{min-height:70px;resize:vertical}
+textarea{min-height:88px;resize:vertical}
 .row{display:flex;gap:10px}
 .row>*{flex:1}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:12px;padding:12px 16px;font:inherit;font-weight:700;cursor:pointer;color:#fff;background:var(--panel2);font-size:15px}
@@ -28,7 +28,7 @@ textarea{min-height:70px;resize:vertical}
 .btn.small{padding:7px 12px;font-size:13px;font-weight:600}
 .btn:disabled{opacity:.45}
 .seg{display:flex;flex-wrap:wrap;gap:6px}
-.seg button{flex:1;min-width:64px;background:var(--bg);border:1px solid var(--border);color:var(--muted);border-radius:10px;padding:9px 6px;font:inherit;font-size:14px;cursor:pointer}
+.seg button{flex:1;min-width:92px;background:var(--bg);border:1px solid var(--border);color:var(--muted);border-radius:10px;padding:9px 6px;font:inherit;font-size:14px;cursor:pointer}
 .seg button.on{border-color:var(--accent);color:var(--text);background:var(--panel2)}
 .clip{display:flex;gap:10px;align-items:flex-start;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:10px;margin-top:10px}
 .clip video{width:72px;height:128px;object-fit:cover;border-radius:8px;background:#000;flex:none}
@@ -36,7 +36,8 @@ textarea{min-height:70px;resize:vertical}
 .clip .name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .clip .times{display:flex;gap:8px;margin-top:6px}
 .clip .times label{margin:0 0 2px}
-.clip .actions{display:flex;gap:6px;margin-top:8px}
+.clip .actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.badge{display:inline-block;margin-left:6px;font-size:11px;font-weight:700;color:#fff;background:var(--accent2);border-radius:999px;padding:2px 7px;vertical-align:middle}
 .pick{border:2px dashed var(--border);border-radius:14px;padding:22px;text-align:center;cursor:pointer;color:var(--muted)}
 .pick b{color:var(--text);display:block;font-size:16px;margin-bottom:4px}
 .switch{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}
@@ -48,167 +49,281 @@ progress{width:100%;height:10px;border-radius:6px;overflow:hidden;accent-color:v
 .actionsRow .btn{flex:1}
 #caption{margin-top:10px;white-space:pre-wrap;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px;font-size:14px;display:none}
 .hidden{display:none!important}
+.previewWrap{display:flex;justify-content:center;margin-top:12px}
+.capPreview{width:132px;height:234px;border-radius:16px;background:#000;display:flex;align-items:center;justify-content:center;text-align:center;padding:12px;font-weight:800;font-size:18px;line-height:1.12;letter-spacing:.2px;color:#fff;text-shadow:-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,2px 2px 0 #000,0 2px 0 #000}
+.capPreview.bar{align-items:flex-end;font-size:15px;padding-bottom:22px}
+.capPreview.top{align-items:flex-start;padding-top:22px}
 </style>
 </head>
 <body>
 <header>
   <img src="/icon-192.png" alt="">
-  <h1>🎞️ Editor da Nexa</h1>
+  <h1>Editor da Nexa</h1>
   <a href="/">← Chat</a>
 </header>
 
 <main>
   <div class="card">
-    <h2>1. Escolha os vídeos</h2>
-    <p class="muted">Pode escolher um ou vários clipes. Eles são juntados na ordem da lista. Tudo é feito aqui no seu aparelho: os vídeos não são enviados para nenhum servidor.</p>
+    <h2>Montar edit de futebol</h2>
+    <p class="muted">Junta de 3 a 10 lances da galeria num vídeo de cerca de 30 segundos, no ritmo, em 9:16, com punch-in, flash e legenda grande. A música é opcional: se você não escolher, o editor cria uma batida própria, sem música de terceiros.</p>
+    <label for="player">Nome do jogador</label>
+    <input id="player" type="text" maxlength="40" placeholder="Ex.: Neymar" autocomplete="off">
+    <button class="btn main" id="montarBtn" type="button" style="margin-top:12px">⚽ Montar edit</button>
+  </div>
+
+  <div class="card">
+    <h2>Montar curiosidade</h2>
+    <p class="muted">Digite um tema. O app escreve um gancho e 5 fatos, cria uma imagem para cada um e monta um vídeo de cerca de 30 segundos em 9:16, com zoom lento e legenda grande. Sem música, entra a batida criada aqui.</p>
+    <label for="tema">Tema</label>
+    <input id="tema" type="text" maxlength="80" placeholder="Ex.: abelhas" autocomplete="off">
+    <button class="btn main" id="curiosBtn" type="button" style="margin-top:12px">🧠 Montar curiosidade</button>
+  </div>
+
+  <div class="card">
+    <h2>Preset de edit 9:16</h2>
+    <p class="muted">Um toque já deixa o vídeo no formato do TikTok, com o efeito certo para futebol ou curiosidade.</p>
+    <div class="seg" id="preset" style="margin-top:10px">
+      <button type="button" data-v="futebol">⚽ Futebol</button>
+      <button type="button" data-v="curiosidade">🧠 Curiosidade</button>
+      <button type="button" data-v="gancho">🔥 Gancho</button>
+      <button type="button" data-v="limpo">✨ Limpo</button>
+    </div>
+    <p class="muted" id="presetHint" style="margin-top:8px">Futebol: zoom no corte e flash branco. Curiosidade: zoom lento e legenda grande.</p>
+  </div>
+
+  <div class="card">
+    <h2>1. Vídeos</h2>
+    <p class="muted">Junte um ou vários lances, na ordem da lista. A edição roda neste aparelho. O vídeo só sai daqui se você pedir para transcrever a fala.</p>
     <label class="pick" for="files" style="margin-top:12px">
       <b>＋ Adicionar vídeos</b>
       Toque para escolher da galeria
     </label>
     <input id="files" type="file" accept="video/*" multiple class="hidden">
     <div id="clips"></div>
+    <div class="actionsRow">
+      <button class="btn" id="beatBtn" type="button">🥁 Cortar no ritmo</button>
+      <button class="btn hidden" id="undoBeat" type="button">↩ Voltar clipes</button>
+    </div>
+    <p class="muted" style="margin-top:8px">Para edit de futebol: preset Futebol, os lances, a música no passo Som e Cortar no ritmo. A batida é calculada aqui, sem enviar o arquivo.</p>
   </div>
 
   <div class="card">
     <h2>2. Formato</h2>
     <div class="seg" id="fmt">
-      <button data-v="9:16" class="on">📱 9:16 TikTok</button>
-      <button data-v="1:1">⬛ 1:1</button>
-      <button data-v="16:9">🖥️ 16:9</button>
-      <button data-v="orig">Original</button>
+      <button type="button" data-v="9:16" class="on">📱 9:16 TikTok</button>
+      <button type="button" data-v="1:1">⬛ 1:1</button>
+      <button type="button" data-v="16:9">🖥️ 16:9</button>
+      <button type="button" data-v="orig">Original</button>
     </div>
     <div id="fitBox">
       <label>Como encaixar</label>
       <div class="seg" id="fit">
-        <button data-v="blur" class="on">Fundo desfocado</button>
-        <button data-v="crop">Cortar e preencher</button>
-        <button data-v="pad">Barras pretas</button>
+        <button type="button" data-v="blur" class="on">Fundo desfocado</button>
+        <button type="button" data-v="crop">Cortar e preencher</button>
+        <button type="button" data-v="pad">Barras pretas</button>
       </div>
     </div>
   </div>
 
   <div class="card">
-    <h2>3. Velocidade</h2>
+    <h2>3. Efeito e transição</h2>
+    <label>Efeito</label>
+    <div class="seg" id="effect">
+      <button type="button" data-v="none" class="on">Sem efeito</button>
+      <button type="button" data-v="punch">Punch-in</button>
+      <button type="button" data-v="zoom">Zoom lento</button>
+      <button type="button" data-v="shake">Tremor no corte</button>
+    </div>
+    <label>Entre os cortes</label>
+    <div class="seg" id="trans">
+      <button type="button" data-v="none" class="on">Corte seco</button>
+      <button type="button" data-v="flash">Flash branco</button>
+      <button type="button" data-v="fade">Fade</button>
+      <button type="button" data-v="wipe">Wipe</button>
+      <button type="button" data-v="slide">Deslizar</button>
+    </div>
+    <p class="muted" style="margin-top:8px">Punch-in aproxima a imagem no corte. No ritmo, os cortes ímpares aproximam e os pares ficam abertos. Flash é o branco rápido do edit de futebol.</p>
+  </div>
+
+  <div class="card">
+    <h2>4. Velocidade</h2>
     <div class="seg" id="speed">
-      <button data-v="0.5">0,5x</button>
-      <button data-v="0.75">0,75x</button>
-      <button data-v="1" class="on">1x</button>
-      <button data-v="1.5">1,5x</button>
-      <button data-v="2">2x</button>
+      <button type="button" data-v="0.5">0,5x</button>
+      <button type="button" data-v="1" class="on">1x</button>
+      <button type="button" data-v="1.25">1,25x</button>
+      <button type="button" data-v="1.5">1,5x</button>
+      <button type="button" data-v="2">2x</button>
     </div>
   </div>
 
   <div class="card">
-    <h2>4. Texto na tela</h2>
-    <input type="text" id="text" placeholder="Ex.: VOCÊ NÃO VAI ACREDITAR 😱 (deixe vazio para não ter)">
-    <div class="row">
-      <div>
-        <label>Posição</label>
-        <select id="textPos"><option value="top">Em cima</option><option value="mid">No meio</option><option value="bottom">Embaixo</option></select>
-      </div>
-      <div>
-        <label>Tamanho</label>
-        <select id="textSize"><option value="0.035">Pequeno</option><option value="0.05" selected>Médio</option><option value="0.07">Grande</option></select>
+    <h2>5. Legenda estilo TikTok</h2>
+    <div class="seg" id="caption">
+      <button type="button" data-v="tiktok" class="on">Grande</button>
+      <button type="button" data-v="bar">Faixa</button>
+      <button type="button" data-v="frase">Uma frase</button>
+      <button type="button" data-v="none">Sem legenda</button>
+    </div>
+    <label for="script">Frases (uma ideia por linha, poucas palavras)</label>
+    <textarea id="script" placeholder="VOCÊ NÃO VAI ACREDITAR&#10;OLHA ESSE LANCE&#10;NO FINAL"></textarea>
+    <div id="lineOpts" class="hidden">
+      <div class="row">
+        <div>
+          <label>Posição</label>
+          <select id="textPos"><option value="mid">No meio</option><option value="top">Em cima</option><option value="bottom">Embaixo</option></select>
+        </div>
+        <div>
+          <label>Mostrar de (s)</label>
+          <input type="number" id="textFrom" min="0" step="0.5" placeholder="início">
+        </div>
+        <div>
+          <label>até (s)</label>
+          <input type="number" id="textTo" min="0" step="0.5" placeholder="fim">
+        </div>
       </div>
     </div>
-    <div class="row">
-      <div>
-        <label>Mostrar de (segundos)</label>
-        <input type="number" id="textFrom" min="0" step="0.5" placeholder="início">
-      </div>
-      <div>
-        <label>até (segundos)</label>
-        <input type="number" id="textTo" min="0" step="0.5" placeholder="fim">
-      </div>
+    <label for="idea">Assunto, se a Nexa for escrever as frases</label>
+    <input type="text" id="idea" placeholder="Ex.: defesa do goleiro no último minuto">
+    <div class="actionsRow">
+      <button class="btn" id="suggestBtn" type="button">✍️ Escrever frases</button>
+      <button class="btn" id="transcribeBtn" type="button">🎤 Transcrever fala</button>
     </div>
-    <p class="muted" style="margin-top:6px">Emojis podem não aparecer no texto do vídeo; use letras e números.</p>
+    <p class="muted" style="margin-top:8px">A legenda grande troca de frase no tempo do vídeo (ou na batida, se você cortou no ritmo). Transcrever envia só o áudio, até 45 segundos, para a IA.</p>
+    <div class="previewWrap"><div id="capPreview" class="capPreview">SUA LEGENDA</div></div>
   </div>
 
   <div class="card">
-    <h2>5. Som</h2>
+    <h2>6. Som</h2>
     <div class="seg" id="audio">
-      <button data-v="keep" class="on">Manter som</button>
-      <button data-v="mute">Sem som</button>
-      <button data-v="music">Só a música</button>
-      <button data-v="mix">Som + música</button>
+      <button type="button" data-v="keep" class="on">Manter som</button>
+      <button type="button" data-v="mute">Sem som</button>
+      <button type="button" data-v="music">Só a música</button>
+      <button type="button" data-v="mix">Som + música</button>
     </div>
     <div id="musicBox" class="hidden">
-      <label>Música (arquivo de áudio do seu aparelho)</label>
+      <label>Música (arquivo do seu aparelho)</label>
       <input type="file" id="music" accept="audio/*">
       <label>Começar a música em (segundos)</label>
       <input type="number" id="musicStart" min="0" step="1" value="0">
     </div>
     <div class="switch">
-      <span class="muted">Efeito de entrada e saída (fade)</span>
+      <span class="muted">Fade de entrada e saída do vídeo inteiro</span>
       <input type="checkbox" id="fade" checked style="width:22px;height:22px">
     </div>
   </div>
 
   <div class="card">
-    <button class="btn main" id="go">✨ Gerar vídeo</button>
+    <button class="btn main" id="go" type="button">✨ Gerar vídeo</button>
     <progress id="bar" value="0" max="100" class="hidden"></progress>
     <div id="status"></div>
-    <p class="muted" style="margin-top:8px">Na primeira vez o editor baixa o motor de edição (uns 30 MB). Vídeos longos demoram: no celular, conte cerca de 1 a 3 minutos para cada 30 segundos de vídeo.</p>
+    <p class="muted" style="margin-top:8px">Na primeira vez o editor baixa o motor de edição (uns 30 MB). No celular, um vídeo de 30 segundos pode levar alguns minutos. Muitos cortes no ritmo saem num processamento só, para não travar.</p>
   </div>
 
   <div class="card hidden" id="result">
     <h2>✅ Pronto!</h2>
     <video id="out" controls playsinline></video>
     <div class="actionsRow">
-      <button class="btn" id="share">📤 Enviar para o TikTok</button>
-      <button class="btn" id="download">💾 Baixar</button>
+      <button class="btn" id="share" type="button">📤 Enviar para o TikTok</button>
+      <button class="btn" id="download" type="button">💾 Baixar</button>
+      <a class="btn hidden" id="coverLink" download="nexa-capa.png">🖼️ Baixar capa</a>
     </div>
-    <label>Sobre o que é o vídeo? (para a Nexa criar a legenda)</label>
-    <input type="text" id="about" placeholder="Ex.: curiosidade sobre o cérebro humano">
+    <div id="postBox" class="hidden">
+      <label for="postText">Pacote de postagem</label>
+      <textarea id="postText" readonly></textarea>
+      <div class="actionsRow">
+        <button class="btn" id="copyPost" type="button">📋 Copiar legenda e hashtags</button>
+      </div>
+    </div>
+    <label>Sobre o que é o vídeo? (legenda do post)</label>
+    <input type="text" id="about" placeholder="Ex.: defesa improvável no último minuto">
     <div class="actionsRow">
-      <button class="btn" id="captionBtn">✍️ Criar legenda e hashtags</button>
+      <button class="btn" id="captionBtn" type="button">✍️ Criar legenda e hashtags</button>
     </div>
     <div id="caption"></div>
-    <div class="actionsRow hidden" id="copyRow"><button class="btn small" id="copyCaption">📋 Copiar legenda</button></div>
+    <div class="actionsRow hidden" id="copyRow"><button class="btn small" id="copyCaption" type="button">📋 Copiar legenda</button></div>
   </div>
 </main>
 
+<script src="/editor-logic.js"></script>
 <script src="/ffmpeg/ffmpeg.js"></script>
 <script>
+const L = window.NexaEditor;
 const $ = (s) => document.querySelector(s);
-const clips = []; // {file, url, dur, start, end}
+const clips = [];
+let beatBackup = null;
 let ffmpeg = null;
 let outBlob = null;
 let busy = false;
-let step = 0, totalSteps = 1;
+let spoken = null;
+let autoLines = null;
+let autoPack = null;
+let coverBlob = null;
+let filling = false;
+let step = 0;
+let totalSteps = 1;
+const HINTS = {
+  futebol: "9:16 preenchido, punch-in alternado e flash branco em cada corte. Coloque a música e toque em Cortar no ritmo.",
+  curiosidade: "9:16 com fundo desfocado, zoom lento, fade e legenda grande no centro.",
+  gancho: "Começo mais rápido (1,25x), tremor no corte e flash. Bom para os 2 primeiros segundos.",
+  limpo: "Só enquadra em 9:16, sem efeito e sem legenda.",
+};
 
 function seg(id, onChange) {
   const box = $(id);
   box.addEventListener("click", (e) => {
     const b = e.target.closest("button");
-    if (!b) return;
+    if (!b || !box.contains(b)) return;
     box.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
-    onChange && onChange(b.dataset.v);
+    if (onChange) onChange(b.dataset.v);
   });
   return () => box.querySelector("button.on").dataset.v;
 }
 const getFmt = seg("#fmt", (v) => $("#fitBox").classList.toggle("hidden", v === "orig"));
 const getFit = seg("#fit");
 const getSpeed = seg("#speed");
+const getEffect = seg("#effect");
+const getTrans = seg("#trans");
+const getCaption = seg("#caption", () => updatePreview());
 const getAudio = seg("#audio", (v) => $("#musicBox").classList.toggle("hidden", !(v === "music" || v === "mix")));
+
+function setSeg(id, value) {
+  const box = $(id);
+  const btn = [...box.querySelectorAll("button")].find((b) => b.dataset.v === String(value));
+  if (btn) btn.click();
+}
 
 function setStatus(t, err) {
   const s = $("#status");
-  s.textContent = t;
+  s.textContent = t || "";
   s.classList.toggle("err", !!err);
 }
 
 function videoDuration(url) {
-  return new Promise((ok) => {
+  return new Promise((resolve) => {
     const v = document.createElement("video");
-    v.preload = "metadata";
-    v.onloadedmetadata = () => ok(isFinite(v.duration) ? v.duration : 0);
-    v.onerror = () => ok(0);
+    v.preload = "auto";
+    v.muted = true;
+    let settled = false;
+    const finish = (n) => {
+      if (settled) return;
+      settled = true;
+      v.removeAttribute("src");
+      try { v.load(); } catch (e) {}
+      resolve(n > 0 && Number.isFinite(n) ? n : 0);
+    };
+    const read = () => {
+      if (Number.isFinite(v.duration) && v.duration > 0) finish(v.duration);
+    };
+    v.onloadedmetadata = read;
+    v.ondurationchange = read;
+    v.onloadeddata = read;
+    v.onerror = () => finish(0);
     v.src = url;
+    setTimeout(() => finish(Number.isFinite(v.duration) ? v.duration : 0), 2500);
   });
 }
 
-function fmt(n) { return (Math.round(n * 10) / 10).toString().replace(".", ","); }
+function fmtTime(n) { return (Math.round(n * 10) / 10).toString().replace(".", ","); }
 
 function renderClips() {
   const box = $("#clips");
@@ -217,38 +332,48 @@ function renderClips() {
     const d = document.createElement("div");
     d.className = "clip";
     d.innerHTML = `
-      <video src="${c.url}" muted playsinline preload="metadata"></video>
+      <video muted playsinline preload="metadata"></video>
       <div class="info">
         <div class="name"></div>
-        <div class="muted">Duração: ${fmt(c.dur)} s</div>
+        <div class="muted">Duração: ${c.dur ? fmtTime(c.dur) + " s" : "o aparelho não informou"}</div>
         <div class="times">
           <div><label>Começa em (s)</label><input type="number" min="0" step="0.1" value="${c.start}" data-k="start"></div>
-          <div><label>Termina em (s)</label><input type="number" min="0" step="0.1" value="${c.end}" data-k="end"></div>
+          <div><label>Termina em (s)</label><input type="number" min="0" step="0.1" value="${c.end || ""}" data-k="end" placeholder="fim"></div>
         </div>
         <div class="actions">
-          <button class="btn small" data-a="up">↑</button>
-          <button class="btn small" data-a="down">↓</button>
-          <button class="btn small" data-a="del">🗑️ Tirar</button>
+          <button class="btn small" type="button" data-a="up">↑</button>
+          <button class="btn small" type="button" data-a="down">↓</button>
+          <button class="btn small" type="button" data-a="del">🗑️ Tirar</button>
         </div>
       </div>`;
-    d.querySelector(".name").textContent = `${i + 1}. ${c.file.name}`;
-    d.querySelectorAll("input").forEach((inp) =>
+    d.querySelector("video").src = c.url;
+    const zoom = c.zoom > 1 && getEffect() === "punch" ? '<span class="badge">zoom</span>' : "";
+    d.querySelector(".name").innerHTML = `${i + 1}. `;
+    d.querySelector(".name").append(document.createTextNode(c.file.name));
+    if (zoom) d.querySelector(".name").insertAdjacentHTML("beforeend", zoom);
+    d.querySelectorAll("input").forEach((inp) => {
       inp.addEventListener("change", () => {
         let v = parseFloat(String(inp.value).replace(",", "."));
-        if (!isFinite(v) || v < 0) v = 0;
+        if (!Number.isFinite(v) || v < 0) v = 0;
         if (c.dur) v = Math.min(v, c.dur);
-        c[inp.dataset.k] = v;
-      })
-    );
-    d.querySelectorAll("button").forEach((b) =>
-      b.addEventListener("click", () => {
-        const a = b.dataset.a;
-        if (a === "del") { URL.revokeObjectURL(c.url); clips.splice(i, 1); }
-        if (a === "up" && i > 0) [clips[i - 1], clips[i]] = [clips[i], clips[i - 1]];
-        if (a === "down" && i < clips.length - 1) [clips[i + 1], clips[i]] = [clips[i], clips[i + 1]];
-        renderClips();
-      })
-    );
+        if (inp.dataset.k === "end" && v > 0 && v <= c.start) v = c.dur && c.dur > c.start ? c.dur : c.start + 0.2;
+        if (inp.dataset.k === "start" && c.end && v >= c.end) v = Math.max(0, c.end - 0.2);
+        c[inp.dataset.k] = inp.dataset.k === "end" && !(v > c.start) ? 0 : v;
+        if (inp.dataset.k === "end" && !(v > 0)) c.end = 0;
+        inp.value = inp.dataset.k === "end" && !c.end ? "" : String(v);
+      });
+    });
+    d.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+      const a = b.dataset.a;
+      if (a === "del") {
+        const url = c.url;
+        clips.splice(i, 1);
+        if (!clips.some((x) => x.url === url) && !(beatBackup || []).some((x) => x.url === url)) URL.revokeObjectURL(url);
+      }
+      if (a === "up" && i > 0) [clips[i - 1], clips[i]] = [clips[i], clips[i - 1]];
+      if (a === "down" && i < clips.length - 1) [clips[i + 1], clips[i]] = [clips[i], clips[i + 1]];
+      renderClips();
+    }));
     box.appendChild(d);
   });
 }
@@ -257,19 +382,66 @@ $("#files").addEventListener("change", async (e) => {
   for (const file of e.target.files) {
     const url = URL.createObjectURL(file);
     const dur = await videoDuration(url);
-    clips.push({ file, url, dur, start: 0, end: Math.round(dur * 10) / 10 });
+    const end = dur ? Math.round(dur * 10) / 10 : 0;
+    clips.push({ file, url, dur, start: 0, end });
   }
   e.target.value = "";
+  beatBackup = null;
+  $("#undoBeat").classList.add("hidden");
   renderClips();
 });
 
+$("#preset").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  $("#preset").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+  const p = L.PRESETS[b.dataset.v];
+  if (!p) return;
+  setSeg("#fmt", p.fmt);
+  setSeg("#fit", p.fit);
+  setSeg("#speed", p.speed);
+  setSeg("#effect", p.effect);
+  setSeg("#trans", p.trans);
+  setSeg("#caption", p.caption);
+  setSeg("#audio", p.audio);
+  $("#fade").checked = !!p.fade;
+  $("#presetHint").textContent = HINTS[b.dataset.v] || "";
+  updatePreview();
+});
+
+function updatePreview() {
+  const style = getCaption();
+  const box = $("#capPreview");
+  const wrap = box.parentElement;
+  wrap.classList.toggle("hidden", style === "none");
+  box.classList.toggle("bar", style === "bar");
+  box.classList.toggle("top", style === "frase" && $("#textPos").value === "top");
+  $("#lineOpts").classList.toggle("hidden", style !== "frase");
+  const script = $("#script").value.trim();
+  const first = style === "frase" ? script : (L.splitPhrases(script)[0] || "");
+  box.textContent = (first || "SUA LEGENDA").toUpperCase();
+}
+$("#script").addEventListener("input", () => {
+  if (!filling) {
+    spoken = null;
+    autoLines = null;
+  }
+  updatePreview();
+});
+$("#textPos").addEventListener("change", updatePreview);
+updatePreview();
+
 async function loadFFmpeg() {
   if (ffmpeg) return ffmpeg;
+  if (!window.FFmpegWASM) throw new Error("Não achei o motor de edição. Atualize a página e tente de novo.");
   setStatus("Baixando o motor de edição (só na primeira vez)…");
   const { FFmpeg } = FFmpegWASM;
   const f = new FFmpeg();
-  f.on("log", ({ message }) => { window.__lastLog = message; });
+  f.on("log", ({ message }) => {
+    if (message && !message.startsWith("frame=") && message.length < 280) window.__lastLog = message;
+  });
   f.on("progress", ({ progress }) => {
+    if (window.__holdProgress) return;
     const p = Math.max(0, Math.min(1, progress || 0));
     $("#bar").value = Math.round(((step + p) / totalSteps) * 100);
   });
@@ -277,211 +449,667 @@ async function loadFFmpeg() {
   try {
     const font = await (await fetch("/ffmpeg/font.ttf")).arrayBuffer();
     await f.writeFile("font.ttf", new Uint8Array(font));
-  } catch {}
+  } catch (e) {}
   ffmpeg = f;
   return f;
 }
 
-function dims(fmtV) {
-  if (fmtV === "9:16") return [720, 1280];
-  if (fmtV === "1:1") return [720, 720];
-  if (fmtV === "16:9") return [1280, 720];
-  return null;
-}
-
-// Monta o filtro de vídeo para um clipe: formato + velocidade + fps
-function videoFilter(fmtV, fitV, speed) {
-  const d = dims(fmtV);
-  const sp = speed !== 1 ? `,setpts=PTS/${speed}` : "";
-  if (!d) return { complex: false, f: `scale=trunc(min(iw\\,1280)/2)*2:-2,fps=30${sp},format=yuv420p` };
-  const [W, H] = d;
-  if (fitV === "crop") return { complex: false, f: `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1,fps=30${sp},format=yuv420p` };
-  if (fitV === "pad") return { complex: false, f: `scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=30${sp},format=yuv420p` };
-  // fundo desfocado
-  return {
-    complex: true,
-    f: `[0:v]split=2[a][b];[a]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},boxblur=20:2[bg];[b]scale=${W}:${H}:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1,fps=30${sp},format=yuv420p[v]`,
-  };
-}
-
-function atempo(speed) {
-  // atempo aceita 0.5 a 2.0
-  return speed !== 1 ? `atempo=${speed}` : "anull";
-}
-
 async function exec(args) {
-  const code = await ffmpeg.exec(args);
-  return code === 0;
+  try {
+    const code = await ffmpeg.exec(args);
+    return code === 0;
+  } catch (e) {
+    window.__lastLog = (e && e.message) || String(e);
+    return false;
+  }
 }
 
-async function processClip(i, c, fmtV, fitV, speed, audioV) {
-  const inName = `in${i}`;
-  const outName = `part${i}.mp4`;
-  await ffmpeg.writeFile(inName, new Uint8Array(await c.file.arrayBuffer()));
-  const start = Math.max(0, c.start || 0);
-  const end = c.end && c.end > start ? c.end : c.dur || 0;
-  const cut = [];
-  if (start > 0) cut.push("-ss", String(start));
-  if (end > start) cut.push("-t", String(end - start));
-  const vf = videoFilter(fmtV, fitV, speed);
-  const enc = ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "26", "-r", "30", "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2", "-shortest", outName];
-
-  const keepAudio = audioV === "keep" || audioV === "mix";
-  const attempts = [];
-  if (keepAudio) {
-    // 1ª tentativa: com o som original
-    attempts.push(vf.complex
-      ? [...cut, "-i", inName, "-filter_complex", `${vf.f};[0:a]${atempo(speed)},aresample=44100[aout]`, "-map", "[v]", "-map", "[aout]", ...enc]
-      : [...cut, "-i", inName, "-vf", vf.f, "-af", `${atempo(speed)},aresample=44100`, "-map", "0:v:0", "-map", "0:a:0", ...enc]);
+async function probeDuration(name) {
+  try {
+    await ffmpeg.deleteFile("dur.txt").catch(() => {});
+    const code = await ffmpeg.ffprobe([
+      "-v", "error",
+      "-show_entries", "format=duration",
+      "-of", "default=noprint_wrappers=1:nokey=1",
+      name,
+      "-o", "dur.txt",
+    ]);
+    if (code !== 0) return 0;
+    const txt = await ffmpeg.readFile("dur.txt", "utf8");
+    const n = parseFloat(String(txt).trim());
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch (e) {
+    return 0;
   }
-  // sem som (ou vídeo que não tem áudio): coloca silêncio para poder juntar depois
-  attempts.push(vf.complex
-    ? [...cut, "-i", inName, "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-filter_complex", vf.f, "-map", "[v]", "-map", "1:a", ...enc]
-    : [...cut, "-i", inName, "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-vf", vf.f, "-map", "0:v:0", "-map", "1:a", ...enc]);
+}
 
+function withTimeout(promise, ms) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), ms);
+    Promise.resolve(promise).then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      () => { clearTimeout(timer); resolve(null); }
+    );
+  });
+}
+
+async function decodeSamples(buffer) {
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return null;
+  const ctx = new Ctx();
+  try {
+    await withTimeout(ctx.resume(), 800);
+    const audio = await withTimeout(ctx.decodeAudioData(buffer.slice(0)), 4000);
+    if (!audio) return null;
+    const ch = audio.getChannelData(0);
+    const samples = new Float32Array(ch.length);
+    samples.set(ch);
+    return samples.length > 1000 ? { samples, sampleRate: audio.sampleRate } : null;
+  } catch (e) {
+    return null;
+  } finally {
+    try { await ctx.close(); } catch (err) {}
+  }
+}
+
+async function audioSamples(file) {
+  const buf = await file.arrayBuffer();
+  const wav = L.decodeWav(new Uint8Array(buf));
+  if (wav && wav.samples.length > 1000) return wav;
+  if (buf.byteLength < 45 * 1024 * 1024) {
+    const direct = await decodeSamples(buf);
+    if (direct) return direct;
+  }
+  await loadFFmpeg();
+  await ffmpeg.writeFile("beat-in", new Uint8Array(buf));
+  const ok = await exec(["-i", "beat-in", "-vn", "-ac", "1", "-ar", "22050", "-t", "90", "-f", "wav", "beat.wav"]);
+  const data = ok ? await ffmpeg.readFile("beat.wav") : null;
+  await ffmpeg.deleteFile("beat-in").catch(() => {});
+  await ffmpeg.deleteFile("beat.wav").catch(() => {});
+  if (!data) return null;
+  const parsed = L.decodeWav(data);
+  if (parsed && parsed.samples.length > 1000) return parsed;
+  const copy = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+  return decodeSamples(copy);
+}
+
+$("#beatBtn").addEventListener("click", async () => {
+  if (busy) return;
+  if (!clips.length) { setStatus("Adicione um vídeo antes de cortar no ritmo.", true); return; }
+  busy = true;
+  const music = $("#music").files[0];
+  const source = music || clips[0].file;
+  setStatus(music ? "Procurando a batida da música…" : "Lendo o áudio do vídeo para achar a batida…");
+  $("#beatBtn").disabled = true;
+  try {
+    const audio = await audioSamples(source);
+    if (!audio) throw new Error("Não consegui ler esse áudio. Escolha a música em mp3 ou m4a no passo Som.");
+    const beats = L.detectBeats(audio.samples, audio.sampleRate);
+    const base = beatBackup || clips.map((c) => ({ ...c }));
+    const slices = L.buildBeatSlices(base, beats, { maxSlices: 12, minLen: 0.34 });
+    if (slices.length < 2) throw new Error("Achei pouca batida. Tente outra música ou um trecho com grave mais marcado.");
+    beatBackup = base;
+    clips.length = 0;
+    slices.forEach((s) => {
+      const src = base[s.clipIndex];
+      clips.push({ file: src.file, url: src.url, dur: src.dur, start: s.start, end: s.end, zoom: s.zoom });
+    });
+    if (getEffect() === "none") setSeg("#effect", "punch");
+    if (getTrans() === "none") setSeg("#trans", "flash");
+    renderClips();
+    $("#undoBeat").classList.remove("hidden");
+    setStatus(`${clips.length} cortes no ritmo. Os que têm o selo “zoom” entram mais fechados. Agora é só gerar.`);
+  } catch (e) {
+    setStatus((e && e.message) || "Não consegui cortar no ritmo.", true);
+  } finally {
+    busy = false;
+    $("#beatBtn").disabled = false;
+  }
+});
+
+$("#undoBeat").addEventListener("click", () => {
+  if (!beatBackup) return;
+  clips.length = 0;
+  beatBackup.forEach((c) => clips.push(c));
+  beatBackup = null;
+  $("#undoBeat").classList.add("hidden");
+  renderClips();
+  setStatus("Voltei para os clipes de antes do corte no ritmo.");
+});
+
+function groupClips(list) {
+  const groups = [];
+  for (const c of list) {
+    const last = groups[groups.length - 1];
+    if (last && last.file === c.file) last.items.push(c);
+    else groups.push({ file: c.file, items: [c] });
+  }
+  return groups;
+}
+
+function audioChain(start, end, speed) {
+  const at = speed === 1 ? "anull" : "atempo=" + speed;
+  if (end > start) return "[0:a]atrim=start=" + start + ":end=" + end + ",asetpts=PTS-STARTPTS," + at + ",aresample=44100[a]";
+  if (start > 0) return "[0:a]atrim=start=" + start + ",asetpts=PTS-STARTPTS," + at + ",aresample=44100[a]";
+  return "[0:a]asetpts=PTS-STARTPTS," + at + ",aresample=44100[a]";
+}
+
+async function processGroup(group, settings, ordinal) {
+  const inName = "src" + ordinal;
+  const outName = "part" + ordinal + ".mp4";
+  await ffmpeg.writeFile(inName, new Uint8Array(await group.file.arrayBuffer()));
+  const d = L.dims(settings.fmt);
+  const W = d ? d[0] : 0;
+  const H = d ? d[1] : 0;
+  const many = group.items.length > 1;
+  const blur = settings.fit === "blur" && !many && settings.fmt !== "orig";
+  const flash = settings.trans === "flash";
+  const enc = ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "26", "-r", "30", "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2", "-movflags", "+faststart", outName];
+  const attempts = [];
+  if (blur) {
+    const slice = group.items[0];
+    const effect = settings.effect === "shake" ? "none" : settings.effect;
+    const vf = L.blurFilter(W, H, settings.speed, flash && ordinal > 0, effect, slice);
+    attempts.push(["-i", inName, "-filter_complex", vf + ";" + audioChain(slice.start || 0, slice.end || 0, settings.speed), "-map", "[v]", "-map", "[a]", ...enc]);
+    attempts.push(["-i", inName, "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-filter_complex", vf + ";[1:a]aresample=44100[a]", "-map", "[v]", "-map", "[a]", "-shortest", ...enc]);
+  } else {
+    const fit = settings.fit === "blur" || !d ? "crop" : settings.fit;
+    const ctx = { W, H, fit, speed: settings.speed, effect: settings.effect, flash, ordinal };
+    attempts.push(["-i", inName, "-filter_complex", L.sliceFilter(group.items, { ...ctx, hasAudio: true }), "-map", "[v]", "-map", "[a]", ...enc]);
+    attempts.push(["-i", inName, "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-filter_complex", L.sliceFilter(group.items, { ...ctx, hasAudio: false }), "-map", "[v]", "-map", "[a]", "-shortest", ...enc]);
+  }
   for (const args of attempts) {
+    await ffmpeg.deleteFile(outName).catch(() => {});
     if (await exec(args)) {
       await ffmpeg.deleteFile(inName).catch(() => {});
-      return outName;
+      return { name: outName, duration: await probeDuration(outName) };
     }
   }
-  throw new Error(`Não consegui processar o clipe ${i + 1}. Tente outro vídeo ou um trecho menor.`);
+  throw new Error("Não consegui processar o clipe " + (ordinal + 1) + ". Tente outro vídeo ou um trecho menor.");
 }
 
-function escText(t) {
-  return t.replace(/\\/g, "\\\\").replace(/:/g, "\\:").replace(/'/g, "\u2019").replace(/%/g, "\\%").replace(/,/g, "\\,");
+async function joinParts(parts, settings) {
+  if (parts.length === 1) return parts[0].name;
+  const xf = L.xfadeFilter(parts.map((p) => p.duration), settings.trans);
+  if (xf && parts.length <= 8) {
+    const args = [];
+    parts.forEach((p) => args.push("-i", p.name));
+    const ok = await exec([
+      ...args, "-filter_complex", xf.filter, "-map", "[v]", "-map", "[a]",
+      "-c:v", "libx264", "-preset", "ultrafast", "-crf", "26",
+      "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2", "joined.mp4",
+    ]);
+    if (ok) return "joined.mp4";
+    setStatus("A transição pesou neste aparelho; juntando com corte seco…");
+  }
+  await ffmpeg.writeFile("list.txt", new TextEncoder().encode(parts.map((p) => "file '" + p.name + "'").join("\n")));
+  if (!(await exec(["-f", "concat", "-safe", "0", "-i", "list.txt", "-c", "copy", "joined.mp4"]))) {
+    throw new Error("Não consegui juntar os clipes.");
+  }
+  return "joined.mp4";
+}
+
+function phrasesFor(total, marks) {
+  const style = getCaption();
+  if (autoLines && autoLines.length && style !== "none" && total > 0.2) return L.scheduleWithHook(autoLines, total, 2);
+  const script = $("#script").value.trim();
+  if (style === "none" || !(total > 0.2)) return [];
+  if (style === "frase") {
+    if (!script) return [];
+    const from = parseFloat($("#textFrom").value);
+    const to = parseFloat($("#textTo").value);
+    const start = Number.isFinite(from) && from >= 0 ? from : 0;
+    const end = Number.isFinite(to) && to > start ? Math.min(to, total) : total;
+    return [{ text: script, start, end }];
+  }
+  const single = clips.length === 1 && !(clips[0].start > 0.05);
+  if (spoken && spoken.length && single) {
+    const fromSpeech = L.phrasesFromSegments(spoken, total);
+    if (fromSpeech.length) return fromSpeech;
+  }
+  return L.timePhrases(L.splitPhrases(script), total, marks);
+}
+
+async function finalize(joined, settings, phrases, totalDur) {
+  const audioV = settings.audio;
+  const musicFile = $("#music").files[0];
+  const fade = settings.fade && totalDur > 1.2;
+  const draw = phrases.map((p) => p.filter);
+  const fades = [];
+  if (fade) {
+    fades.push("fade=t=in:st=0:d=0.35");
+    fades.push("fade=t=out:st=" + Math.max(0, totalDur - 0.45).toFixed(2) + ":d=0.4");
+  }
+  const need = draw.length || fades.length || audioV === "mute" || audioV === "music" || audioV === "mix";
+  if (!need) return { name: joined, captionDropped: false };
+  for (const p of phrases) await ffmpeg.writeFile(p.name, new TextEncoder().encode(p.body));
+  if (audioV === "music" || audioV === "mix") {
+    const ms = Math.max(0, parseFloat($("#musicStart").value) || 0);
+    await ffmpeg.writeFile("music", new Uint8Array(await musicFile.arrayBuffer()));
+    window.__musicSs = ms;
+  }
+
+  async function run(useText) {
+    const vfs = (useText ? draw : []).concat(fades);
+    const args = ["-i", joined];
+    if (audioV === "music" || audioV === "mix") args.push("-stream_loop", "-1", "-ss", String(window.__musicSs || 0), "-i", "music");
+    let complex = "";
+    let maps = [];
+    if (audioV === "mix" && vfs.length) {
+      complex = "[0:v]" + vfs.join(",") + "[vout];[1:a]volume=0.32,aresample=44100[m];[0:a]aresample=44100[o];[o][m]amix=inputs=2:duration=first:dropout_transition=0[aout]";
+      maps = ["-map", "[vout]", "-map", "[aout]"];
+    } else if (audioV === "mix") {
+      complex = "[1:a]volume=0.32,aresample=44100[m];[0:a]aresample=44100[o];[o][m]amix=inputs=2:duration=first:dropout_transition=0[aout]";
+      maps = ["-map", "0:v:0", "-map", "[aout]"];
+    } else if (vfs.length) {
+      args.push("-vf", vfs.join(","));
+      maps = audioV === "mute" ? ["-map", "0:v:0", "-an"] : audioV === "music" ? ["-map", "0:v:0", "-map", "1:a:0"] : ["-map", "0:v:0", "-map", "0:a?"];
+    } else if (audioV === "mute") maps = ["-map", "0:v:0", "-an"];
+    else if (audioV === "music") maps = ["-map", "0:v:0", "-map", "1:a:0"];
+    const encodeVideo = vfs.length > 0 || complex.includes("[vout]");
+    const out = [
+      ...args,
+      ...(complex ? ["-filter_complex", complex] : []),
+      ...maps,
+      "-c:v", encodeVideo ? "libx264" : "copy",
+      ...(encodeVideo ? ["-preset", "ultrafast", "-crf", "22", "-pix_fmt", "yuv420p"] : []),
+    ];
+    if (audioV !== "mute") out.push("-c:a", "aac", "-b:a", "128k", "-ar", "44100");
+    if (audioV === "music" || audioV === "mix") out.push("-shortest");
+    out.push("-movflags", "+faststart", "final.mp4");
+    await ffmpeg.deleteFile("final.mp4").catch(() => {});
+    return exec(out);
+  }
+
+  if (await run(true)) return { name: "final.mp4", captionDropped: false };
+  if (draw.length) {
+    setStatus("A legenda não entrou neste vídeo; finalizando sem ela…");
+    if (await run(false)) return { name: "final.mp4", captionDropped: true };
+  }
+  throw new Error("Não consegui finalizar o vídeo." + (window.__lastLog ? " " + window.__lastLog : ""));
+}
+
+async function cleanup() {
+  if (!ffmpeg) return;
+  const trash = ["joined.mp4", "final.mp4", "list.txt", "music", "dur.txt", "beat-in", "beat.wav", "speechin", "speech.wav"];
+  for (let i = 0; i < 30; i++) trash.push("src" + i, "part" + i + ".mp4", "cap" + i + ".txt");
+  for (const n of trash) await ffmpeg.deleteFile(n).catch(() => {});
 }
 
 async function generate() {
   if (busy) return;
+  if (!L) { setStatus("O editor não carregou. Atualize a página.", true); return; }
   if (!clips.length) { setStatus("Escolha pelo menos um vídeo primeiro.", true); return; }
-  const audioV = getAudio();
-  const musicFile = $("#music").files[0];
-  if ((audioV === "music" || audioV === "mix") && !musicFile) { setStatus("Escolha a música no passo 5.", true); return; }
-
+  const settings = {
+    fmt: getFmt(), fit: getFit(), speed: parseFloat(getSpeed()) || 1,
+    effect: getEffect(), trans: getTrans(), audio: getAudio(), fade: $("#fade").checked,
+  };
+  if ((settings.audio === "music" || settings.audio === "mix") && !$("#music").files[0]) {
+    setStatus("Escolha a música no passo Som, ou use Manter som.", true);
+    return;
+  }
+  for (const c of clips) {
+    if (c.end && c.start && c.end <= c.start) {
+      setStatus("Tem clipe com o fim antes do começo. Ajuste os tempos.", true);
+      return;
+    }
+  }
   busy = true;
   $("#go").disabled = true;
   $("#result").classList.add("hidden");
   const bar = $("#bar");
   bar.classList.remove("hidden");
   bar.value = 0;
+  let blurNote = false;
   try {
     await loadFFmpeg();
-    const fmtV = getFmt(), fitV = getFit(), speed = parseFloat(getSpeed());
-    totalSteps = clips.length + 1;
+    const groups = groupClips(clips);
+    totalSteps = groups.length + 2;
     step = 0;
-
     const parts = [];
-    for (let i = 0; i < clips.length; i++) {
+    for (let i = 0; i < groups.length; i++) {
       step = i;
-      setStatus(`Preparando o clipe ${i + 1} de ${clips.length}…`);
-      parts.push(await processClip(i, clips[i], fmtV, fitV, speed, audioV));
+      if (settings.fit === "blur" && groups[i].items.length > 1) blurNote = true;
+      setStatus("Preparando a parte " + (i + 1) + " de " + groups.length + "…");
+      parts.push(await processGroup(groups[i], settings, i));
     }
-
-    step = clips.length;
-    setStatus("Juntando e finalizando…");
-    let joined = parts[0];
-    if (parts.length > 1) {
-      await ffmpeg.writeFile("list.txt", new TextEncoder().encode(parts.map((p) => `file '${p}'`).join("\n")));
-      if (!(await exec(["-f", "concat", "-safe", "0", "-i", "list.txt", "-c", "copy", "joined.mp4"]))) throw new Error("Não consegui juntar os clipes.");
-      joined = "joined.mp4";
+    step = groups.length;
+    setStatus(settings.trans === "fade" || settings.trans === "wipe" || settings.trans === "slide" ? "Juntando com transição…" : "Juntando os cortes…");
+    const joined = await joinParts(parts, settings);
+    let total = await probeDuration(joined);
+    if (!(total > 0)) {
+      const est = L.outputDuration(clips, settings.speed);
+      total = est.known ? est.seconds : 0;
     }
-
-    // duração final (aproximada)
-    const totalDur = clips.reduce((acc, c) => acc + Math.max(0, (c.end || c.dur) - (c.start || 0)), 0) / speed;
-
-    const text = $("#text").value.trim();
-    const fade = $("#fade").checked;
-    const needFinal = text || fade || audioV === "mute" || audioV === "music" || audioV === "mix";
-    let finalName = joined;
-
-    if (needFinal) {
-      const vfs = [];
-      if (text) {
-        const d = dims(fmtV);
-        const H = d ? d[1] : 720, W = d ? d[0] : 1280;
-        // não deixa o texto passar da largura do vídeo
-        const size = Math.round(Math.min(H * parseFloat($("#textSize").value), (W * 0.9) / Math.max(1, text.length * 0.62)));
-        const pos = $("#textPos").value;
-        const y = pos === "top" ? "h*0.12" : pos === "mid" ? "(h-text_h)/2" : "h*0.80-text_h";
-        const from = parseFloat($("#textFrom").value), to = parseFloat($("#textTo").value);
-        const en = isFinite(from) || isFinite(to) ? `:enable='between(t\\,${isFinite(from) ? from : 0}\\,${isFinite(to) ? to : 99999})'` : "";
-        vfs.push(`drawtext=fontfile=font.ttf:text='${escText(text)}':fontsize=${size}:fontcolor=white:borderw=4:bordercolor=black:x=(w-text_w)/2:y=${y}${en}`);
-      }
-      if (fade && totalDur > 1.5) {
-        vfs.push(`fade=t=in:st=0:d=0.4`, `fade=t=out:st=${Math.max(0, totalDur - 0.5).toFixed(2)}:d=0.5`);
-      }
-      const args = ["-i", joined];
-      let audioMap = ["-map", "0:a?"];
-      let af = [];
-      if (audioV === "mute") audioMap = ["-an"];
-      if (audioV === "music" || audioV === "mix") {
-        await ffmpeg.writeFile("music", new Uint8Array(await musicFile.arrayBuffer()));
-        const ms = Math.max(0, parseFloat($("#musicStart").value) || 0);
-        args.push("-ss", String(ms), "-i", "music");
-        if (audioV === "music") {
-          audioMap = ["-map", "1:a:0"];
-          af = ["-af", `afade=t=out:st=${Math.max(0, totalDur - 1).toFixed(2)}:d=1`];
-        } else {
-          audioMap = [];
-          af = ["-filter_complex", `[1:a]volume=0.35[m];[0:a][m]amix=inputs=2:duration=first:dropout_transition=0[aout]`, "-map", "[aout]"];
-        }
-      }
-      const vArgs = vfs.length ? ["-vf", vfs.join(",")] : [];
-      const finalArgs = [
-        ...args,
-        ...vArgs,
-        "-map", "0:v:0",
-        ...audioMap,
-        ...af,
-        "-c:v", vfs.length ? "libx264" : "copy",
-        ...(vfs.length ? ["-preset", "ultrafast", "-crf", "24"] : []),
-        "-c:a", "aac", "-b:a", "128k",
-        "-t", totalDur.toFixed(2),
-        "-movflags", "+faststart",
-        "final.mp4",
-      ];
-      if (!(await exec(finalArgs))) {
-        // Se o texto falhar (fonte), tenta sem texto
-        if (text) {
-          setStatus("O texto deu problema; finalizando sem texto…");
-          const noText = finalArgs.slice();
-          const i = noText.indexOf("-vf");
-          if (i >= 0) {
-            const rest = vfs.filter((x) => !x.startsWith("drawtext"));
-            if (rest.length) noText[i + 1] = rest.join(",");
-            else { noText.splice(i, 2); noText[noText.indexOf("-c:v") + 1] = "copy"; }
-          }
-          if (!(await exec(noText))) throw new Error("Não consegui finalizar o vídeo.");
-        } else throw new Error("Não consegui finalizar o vídeo.");
-      }
-      finalName = "final.mp4";
-    }
-
+    const marks = L.scaleMarks(L.timelineMarks(clips, settings.speed), total || L.timelineMarks(clips, settings.speed).slice(-1)[0]);
+    const dim = L.dims(settings.fmt) || [720, 1280];
+    const style = getCaption();
+    const phrases = phrasesFor(total, marks);
+    const caps = style === "none" ? [] : L.captionPlan(phrases, dim[0], dim[1], style, $("#textPos").value);
+    step = groups.length + 1;
+    setStatus(caps.length ? "Gravando a legenda grande…" : "Finalizando…");
+    const done = await finalize(joined, settings, caps, total);
+    const finalName = done.name;
     const data = await ffmpeg.readFile(finalName);
-    outBlob = new Blob([data.buffer], { type: "video/mp4" });
+    const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+    outBlob = new Blob([bytes], { type: "video/mp4" });
     const out = $("#out");
     if (out.src) URL.revokeObjectURL(out.src);
     out.src = URL.createObjectURL(outBlob);
     bar.value = 100;
-    setStatus(`Vídeo pronto (${(outBlob.size / 1048576).toFixed(1).replace(".", ",")} MB).`);
+    const mb = (outBlob.size / 1048576).toFixed(1).replace(".", ",");
+    let msg = "Vídeo pronto (" + mb + " MB).";
+    if (blurNote) msg += " Nos cortes do ritmo usei preencher a tela, que é mais leve que o fundo desfocado.";
+    if (done.captionDropped) msg += " A legenda não entrou; o resto do vídeo foi gerado.";
+    else if (!caps.length && style !== "none" && $("#script").value.trim()) msg += " Não deu para medir a duração, então a legenda ficou de fora.";
+    setStatus(msg);
     $("#result").classList.remove("hidden");
+    if (autoPack) {
+      try {
+        setStatus("Criando a capa e o pacote de postagem…");
+        await finishPack(autoPack);
+        setStatus(msg + " Capa e legenda do post prontas.");
+      } catch (err) {
+        setStatus(msg + " " + ((err && err.message) || "A capa não entrou."));
+      }
+    }
     $("#result").scrollIntoView({ behavior: "smooth" });
-
-    // limpa arquivos temporários
-    for (const n of [...parts, "joined.mp4", "final.mp4", "list.txt", "music"]) await ffmpeg.deleteFile(n).catch(() => {});
   } catch (e) {
     console.error(e);
     setStatus((e && e.message) || "Deu um erro ao gerar o vídeo.", true);
   } finally {
+    await cleanup();
     busy = false;
     $("#go").disabled = false;
   }
 }
 
+async function askEditLines(player) {
+  const fallback = L.fallbackCaptions(player);
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 12000);
+    const r = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: "rapida",
+        search: false,
+        profile: { videoMode: true, emojis: false },
+        messages: [{
+          role: "user",
+          content: "Edit de TikTok de futebol sobre o jogador " + player + ". Responda só com 5 linhas, uma por linha, 2 a 4 palavras, em português do Brasil. A primeira linha é o gancho com o nome. Sem hashtag, sem número, sem explicação.",
+        }],
+      }),
+    });
+    clearTimeout(timer);
+    if (!r.ok) return fallback;
+    const lines = L.parseCaptionLines((await r.text()).replace(/\*\*/g, ""));
+    return lines.length >= 4 ? lines.slice(0, 5) : fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+
+async function montarEdit() {
+  if (busy) return;
+  const player = $("#player").value.trim();
+  if (player.length < 2) { setStatus("Escreva o nome do jogador.", true); return; }
+  const base = (beatBackup || clips).map((c) => ({ ...c }));
+  if (base.length < 3 || base.length > 10) {
+    setStatus("Escolha de 3 a 10 clipes da galeria antes de montar o edit.", true);
+    return;
+  }
+  busy = true;
+  $("#montarBtn").disabled = true;
+  $("#go").disabled = true;
+  const bar = $("#bar");
+  bar.classList.remove("hidden");
+  bar.value = 4;
+  let handoff = false;
+  try {
+    setStatus("Aplicando o preset Futebol…");
+    $("#preset button[data-v='futebol']").click();
+    let musicFile = $("#music").files[0];
+    if (!musicFile) {
+      setStatus("Criando a batida (som original, sem música de terceiros)…");
+      const wav = L.makeBeatWav(32, 120);
+      musicFile = new File([wav], "nexa-batida.wav", { type: "audio/wav" });
+      const dt = new DataTransfer();
+      dt.items.add(musicFile);
+      $("#music").files = dt.files;
+    }
+    bar.value = 12;
+    setStatus("Escrevendo o gancho e as legendas…");
+    const lines = await askEditLines(player);
+    spoken = null;
+    setScript(lines.join("\n"));
+    autoLines = lines;
+    autoPack = { kind: "futebol", subject: player, hook: lines[0] };
+    setSeg("#caption", "tiktok");
+    bar.value = 22;
+    setStatus("Cortando no ritmo e distribuindo os lances…");
+    const audio = await audioSamples(musicFile);
+    if (!audio) throw new Error("Não consegui ler a música desse edit.");
+    const beats = L.detectBeats(audio.samples, audio.sampleRate);
+    const slices = L.planFootballEdit(base, beats, { target: 30, maxSlices: 12 });
+    if (slices.length < 3) throw new Error("Não deu para distribuir os clipes no ritmo.");
+    beatBackup = base;
+    clips.length = 0;
+    slices.forEach((s) => {
+      const src = base[s.clipIndex];
+      clips.push({ file: src.file, url: src.url, dur: src.dur, start: s.start, end: s.end, zoom: s.zoom });
+    });
+    renderClips();
+    $("#undoBeat").classList.remove("hidden");
+    const total = slices.reduce((acc, s) => acc + (s.end - s.start), 0);
+    setStatus("Montando cerca de " + Math.round(total) + " s de " + player + "…");
+    busy = false;
+    handoff = true;
+    await generate();
+    $("#go").disabled = false;
+  } catch (e) {
+    setStatus((e && e.message) || "Não consegui montar o edit.", true);
+  } finally {
+    if (!handoff) {
+      busy = false;
+      $("#go").disabled = false;
+    }
+    $("#montarBtn").disabled = false;
+  }
+}
+
+function useBeatFile() {
+  const current = $("#music").files[0];
+  if (current) return current;
+  const wav = L.makeBeatWav(34, 110);
+  const file = new File([wav], "nexa-batida.wav", { type: "audio/wav" });
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  $("#music").files = dt.files;
+  return file;
+}
+
+async function stillImage(prompt) {
+  let last = "sem resposta";
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const seed = Math.floor(Math.random() * 1e9);
+    const url =
+      "https://image.pollinations.ai/prompt/" +
+      encodeURIComponent(String(prompt || "simple illustration").slice(0, 400)) +
+      "?width=768&height=768&seed=" + seed + "&safe=true";
+    const r = await fetch(url);
+    const type = r.headers.get("content-type") || "";
+    if (r.ok && type.startsWith("image/")) {
+      const blob = await r.blob();
+      if (blob.size > 2000) return blob;
+    }
+    last = r.status + " " + type.slice(0, 24);
+    if (attempt === 0) {
+      const wait = Math.min(12, (Number(r.headers.get("retry-after")) || 6) + 1);
+      setStatus("Imagem ocupada (" + r.status + "). Nova tentativa em " + wait + " s…");
+      await new Promise((ok) => setTimeout(ok, wait * 1000));
+    }
+  }
+  throw new Error("Não consegui criar a imagem (" + last + ").");
+}
+
+function drawnSlide(index) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 768;
+  canvas.height = 768;
+  const ctx = canvas.getContext("2d");
+  const pairs = [["#141432", "#ff8c42"], ["#0b3d2e", "#7c3aed"], ["#3b1020", "#f5d76e"], ["#102a43", "#4ade80"], ["#241040", "#67e8f9"]];
+  const pair = pairs[index % pairs.length];
+  const g = ctx.createLinearGradient(0, 0, 768, 768);
+  g.addColorStop(0, pair[0]);
+  g.addColorStop(1, pair[1]);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 768, 768);
+  ctx.fillStyle = "rgba(255,255,255,0.2)";
+  ctx.beginPath();
+  ctx.arc(384, 320, 110 + index * 12, 0, Math.PI * 2);
+  ctx.fill();
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+}
+
+async function slideFromImage(blob, index) {
+  const raw = new Uint8Array(await blob.arrayBuffer());
+  await ffmpeg.writeFile("slide.png", raw);
+  const name = "slide" + index + ".mp4";
+  const ok = await exec([
+    "-loop", "1", "-framerate", "30", "-t", "6", "-i", "slide.png",
+    "-vf", "scale=828:1472:force_original_aspect_ratio=increase,crop=720:1280:x='(in_w-720)/2':y='(in_h-1280)/2*(1-min(t/6\\,1))',setsar=1,fps=30,format=yuv420p",
+    "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28", "-pix_fmt", "yuv420p", "-an", name,
+  ]);
+  await ffmpeg.deleteFile("slide.png").catch(() => {});
+  if (!ok) throw new Error("Não consegui transformar a imagem em vídeo.");
+  const data = await ffmpeg.readFile(name);
+  const bytes = data instanceof Uint8Array ? new Uint8Array(data) : new Uint8Array(data);
+  await ffmpeg.deleteFile(name).catch(() => {});
+  const file = new File([bytes], "fato-" + (index + 1) + ".mp4", { type: "video/mp4" });
+  return { file, url: URL.createObjectURL(file), dur: 6, start: 0, end: 6 };
+}
+
+async function askCuriosity(theme) {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 12000);
+    const r = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: "rapida",
+        search: false,
+        profile: { videoMode: true, emojis: false },
+        messages: [{
+          role: "user",
+          content: "Tema: " + theme + ". Responda só com 6 linhas em português do Brasil, 2 a 5 palavras cada, sem número e sem hashtag. A primeira é o gancho. As outras 5 são fatos curtos.",
+        }],
+      }),
+    });
+    clearTimeout(timer);
+    if (!r.ok) return null;
+    const lines = L.parseCaptionLines((await r.text()).replace(/\*\*/g, ""));
+    if (lines.length < 4) return null;
+    return { hook: lines[0], facts: lines.slice(1, 6) };
+  } catch (e) {
+    return null;
+  }
+}
+
+async function wikiFacts(theme) {
+  const search = await fetch(
+    "https://pt.wikipedia.org/w/api.php?action=opensearch&search=" + encodeURIComponent(theme) + "&limit=1&namespace=0&format=json&origin=*"
+  );
+  if (!search.ok) return null;
+  const data = await search.json();
+  const title = data && data[1] && data[1][0];
+  if (!title) return null;
+  const sum = await fetch("https://pt.wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(title.replace(/ /g, "_")));
+  if (!sum.ok) return null;
+  const page = await sum.json();
+  const pack = L.factsFromSummary(theme, page.extract || "");
+  if (!pack.facts.length) return null;
+  return pack;
+}
+
+async function montarCuriosidade() {
+  if (busy) return;
+  const theme = $("#tema").value.trim();
+  if (theme.length < 2) { setStatus("Escreva o tema da curiosidade.", true); return; }
+  busy = true;
+  $("#curiosBtn").disabled = true;
+  $("#go").disabled = true;
+  const bar = $("#bar");
+  bar.classList.remove("hidden");
+  bar.value = 4;
+  let handoff = false;
+  try {
+    setStatus("Escrevendo o gancho e os fatos…");
+    let story = await askCuriosity(theme);
+    if (!story) {
+      setStatus("A IA não respondeu. Buscando um resumo na Wikipédia…");
+      story = await wikiFacts(theme);
+    }
+    if (!story || !story.facts || story.facts.length < 3) throw new Error("Não encontrei fatos suficientes sobre esse tema.");
+    const facts = story.facts.slice(0, 5);
+    while (facts.length < 5) facts.push("E TEM MAIS");
+    const hook = story.hook || "VOCÊ SABIA";
+    const lines = [hook, ...facts];
+    setScript(lines.join("\n"));
+    autoLines = lines;
+    autoPack = { kind: "curiosidade", subject: theme, hook };
+    $("#preset button[data-v='curiosidade']").click();
+    setSeg("#audio", "music");
+    setSeg("#effect", "none");
+    setSeg("#fit", "crop");
+    setSeg("#caption", "tiktok");
+    useBeatFile();
+    await loadFFmpeg();
+    window.__holdProgress = true;
+    if (!beatBackup) beatBackup = clips.map((c) => ({ ...c }));
+    clips.splice(0, clips.length);
+    for (let i = 0; i < facts.length; i++) {
+      bar.value = 10 + Math.round((i / facts.length) * 40);
+      setStatus("Criando a imagem " + (i + 1) + " de " + facts.length + "…");
+      let blob;
+      try {
+        blob = await stillImage("illustration of " + facts[i] + ", centered subject, colorful, no text, no letters");
+      } catch (err) {
+        setStatus("A imagem grátis falhou no fato " + (i + 1) + ". Usei um desenho simples.");
+        blob = await drawnSlide(i);
+      }
+      setStatus("Preparando o slide " + (i + 1) + "…");
+      clips.push(await slideFromImage(blob, i));
+    }
+    renderClips();
+    $("#undoBeat").classList.remove("hidden");
+    window.__holdProgress = false;
+    setStatus("Montando a curiosidade sobre " + theme + "…");
+    busy = false;
+    handoff = true;
+    await generate();
+    $("#go").disabled = false;
+  } catch (e) {
+    setStatus((e && e.message) || "Não consegui montar a curiosidade.", true);
+  } finally {
+    window.__holdProgress = false;
+    if (!handoff) {
+      busy = false;
+      $("#go").disabled = false;
+    }
+    $("#curiosBtn").disabled = false;
+  }
+}
+
+$("#curiosBtn").addEventListener("click", montarCuriosidade);
+$("#montarBtn").addEventListener("click", montarEdit);
 $("#go").addEventListener("click", generate);
 
-function fileName() { return `nexa-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.mp4`; }
+function fileName() { return "nexa-" + new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-") + ".mp4"; }
 
 $("#download").addEventListener("click", () => {
   if (!outBlob) return;
@@ -493,13 +1121,172 @@ $("#download").addEventListener("click", () => {
   a.remove();
 });
 
+function seekTo(video, time) {
+  return new Promise((resolve) => {
+    const done = () => {
+      video.removeEventListener("seeked", done);
+      resolve();
+    };
+    video.addEventListener("seeked", done);
+    try { video.currentTime = Math.max(0, time); } catch (e) { resolve(); }
+  });
+}
+
+async function bestFrameTime(video) {
+  if (video.readyState < 2) {
+    await new Promise((resolve) => video.addEventListener("loadeddata", resolve, { once: true }));
+  }
+  const dur = video.duration || 0;
+  const times = [0.8, 1.5, 4, 8, 14, 20].filter((t) => dur <= 0.2 || t < dur - 0.1);
+  const sample = document.createElement("canvas");
+  sample.width = 72;
+  sample.height = 128;
+  const ctx = sample.getContext("2d", { willReadFrequently: true });
+  let best = times[0] || 0.8;
+  let bestScore = -1;
+  for (const t of times) {
+    await seekTo(video, t);
+    ctx.drawImage(video, 0, 0, 72, 128);
+    const px = ctx.getImageData(0, 0, 72, 128).data;
+    let sum = 0;
+    let sum2 = 0;
+    let n = 0;
+    for (let i = 0; i < px.length; i += 16) {
+      const y = px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11;
+      sum += y;
+      sum2 += y * y;
+      n++;
+    }
+    const mean = sum / n;
+    const variance = sum2 / n - mean * mean;
+    const score = mean > 235 ? -1 : variance;
+    if (score > bestScore) {
+      bestScore = score;
+      best = t;
+    }
+  }
+  return best;
+}
+
+function paintCover(ctx, hook) {
+  const layout = L.layoutCaption(hook || "OLHA ISSO", 720, 1280, "tiktok");
+  ctx.fillStyle = "rgba(0,0,0,0.9)";
+  ctx.fillRect(40, 500, 640, 320);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = "800 68px sans-serif";
+  ctx.lineWidth = 14;
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "#000";
+  ctx.fillStyle = "#fff";
+  const y0 = 660 - ((layout.lines.length - 1) * 43);
+  layout.lines.forEach((line, i) => {
+    const y = y0 + i * 86;
+    ctx.strokeText(line, 360, y);
+    ctx.fillText(line, 360, y);
+  });
+}
+
+async function makeCover(hook) {
+  const video = $("#out");
+  const t = await bestFrameTime(video);
+  await seekTo(video, t);
+  const canvas = document.createElement("canvas");
+  canvas.width = 720;
+  canvas.height = 1280;
+  const ctx = canvas.getContext("2d");
+  const vw = video.videoWidth || 720;
+  const vh = video.videoHeight || 1280;
+  const scale = Math.max(720 / vw, 1280 / vh);
+  const dw = vw * scale;
+  const dh = vh * scale;
+  ctx.drawImage(video, (720 - dw) / 2, (1280 - dh) / 2, dw, dh);
+  paintCover(ctx, hook);
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+  if (!blob || blob.size < 1000) throw new Error("Não consegui gerar a capa.");
+  coverBlob = blob;
+  const link = $("#coverLink");
+  if (link.href && link.href.startsWith("blob:")) URL.revokeObjectURL(link.href);
+  link.href = URL.createObjectURL(blob);
+  link.classList.remove("hidden");
+  try { video.currentTime = 0; } catch (e) {}
+}
+
+async function askPost(pack) {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 12000);
+    const r = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: "rapida",
+        search: false,
+        profile: { videoMode: true, emojis: true },
+        messages: [{
+          role: "user",
+          content: "Escreva a legenda de um post de TikTok sobre " + pack.subject + ". Uma frase e depois 6 hashtags. Sem explicação.",
+        }],
+      }),
+    });
+    clearTimeout(timer);
+    if (!r.ok) return null;
+    return L.parsePost(await r.text());
+  } catch (e) {
+    return null;
+  }
+}
+
+async function finishPack(pack) {
+  await makeCover(pack.hook);
+  const post = (await askPost(pack)) || L.fallbackPost(pack.kind, pack.subject, pack.hook);
+  $("#postText").value = post.text + "\n\n" + post.tags.join(" ");
+  $("#postBox").classList.remove("hidden");
+}
+
+function markCopied() {
+  $("#copyPost").dataset.copied = "1";
+  $("#copyPost").textContent = "✅ Copiado";
+  setStatus("Legenda e hashtags copiadas.");
+}
+
+$("#copyPost").addEventListener("click", () => {
+  const text = $("#postText").value.trim();
+  if (!text) return;
+  const tmp = document.createElement("textarea");
+  tmp.value = text;
+  tmp.setAttribute("aria-hidden", "true");
+  tmp.style.position = "fixed";
+  tmp.style.left = "0";
+  tmp.style.top = "0";
+  tmp.style.opacity = "0";
+  document.body.appendChild(tmp);
+  tmp.focus();
+  tmp.select();
+  let ok = false;
+  try { ok = document.execCommand("copy"); } catch (e) {}
+  tmp.remove();
+  if (ok) {
+    markCopied();
+    return;
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(markCopied).catch(() => {
+      setStatus("Não consegui copiar. Selecione o texto do pacote.", true);
+    });
+    return;
+  }
+  setStatus("Não consegui copiar. Selecione o texto do pacote.", true);
+});
+
 $("#share").addEventListener("click", async () => {
   if (!outBlob) return;
   const file = new File([outBlob], fileName(), { type: "video/mp4" });
-  const caption = $("#caption").textContent || "";
+  const caption = ($("#postText").value || "").trim() || ($("#caption").style.display === "block" ? $("#caption").textContent || "" : "");
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
-      if (caption) { try { await navigator.clipboard.writeText(caption); } catch {} }
+      if (caption) { try { await navigator.clipboard.writeText(caption); } catch (e) {} }
       await navigator.share({ files: [file], text: caption || undefined });
       if (caption) setStatus("Legenda copiada: é só colar no TikTok.");
     } catch (e) {
@@ -510,9 +1297,89 @@ $("#share").addEventListener("click", async () => {
   }
 });
 
+function bytesToBase64(data) {
+  const u = data instanceof Uint8Array ? data : new Uint8Array(data);
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < u.length; i += chunk) bin += String.fromCharCode.apply(null, u.subarray(i, i + chunk));
+  return btoa(bin);
+}
+
+function setScript(text) {
+  filling = true;
+  $("#script").value = text;
+  filling = false;
+  updatePreview();
+}
+
+$("#suggestBtn").addEventListener("click", async () => {
+  const about = $("#idea").value.trim() || $("#script").value.trim();
+  if (!about) { setStatus("Escreva o assunto da legenda.", true); return; }
+  $("#suggestBtn").disabled = true;
+  setStatus("A Nexa está escrevendo as frases…");
+  try {
+    const r = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "rapida",
+        search: false,
+        profile: { videoMode: true, emojis: false },
+        messages: [{ role: "user", content: "Escreva legendas de TikTok em português do Brasil sobre: " + about + ". Uma frase por linha, 2 a 4 palavras, entre 6 e 12 linhas. Sem hashtag, sem número, sem aspas e sem explicação." }],
+      }),
+    });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "Erro");
+    spoken = null;
+    const text = (await r.text()).replace(/\*\*/g, "").replace(/^\d+[.)]\s*/gm, "").trim();
+    setScript(text);
+    setSeg("#caption", "tiktok");
+    setStatus("Frases prontas. Elas entram grandes, uma de cada vez, quando você gerar o vídeo.");
+  } catch (e) {
+    setStatus((e && e.message) || "Não consegui escrever as frases.", true);
+  } finally {
+    $("#suggestBtn").disabled = false;
+  }
+});
+
+$("#transcribeBtn").addEventListener("click", async () => {
+  if (busy) return;
+  if (!clips.length) { setStatus("Escolha o vídeo com a fala primeiro.", true); return; }
+  busy = true;
+  $("#transcribeBtn").disabled = true;
+  try {
+    setStatus("Separando o áudio (até 45 segundos)…");
+    await loadFFmpeg();
+    await ffmpeg.writeFile("speechin", new Uint8Array(await clips[0].file.arrayBuffer()));
+    const ok = await exec(["-i", "speechin", "-vn", "-ac", "1", "-ar", "16000", "-t", "45", "-f", "wav", "speech.wav"]);
+    if (!ok) throw new Error("Não consegui separar o áudio desse vídeo.");
+    const data = await ffmpeg.readFile("speech.wav");
+    await ffmpeg.deleteFile("speechin").catch(() => {});
+    await ffmpeg.deleteFile("speech.wav").catch(() => {});
+    setStatus("Transcrevendo a fala…");
+    const r = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ task: "transcrever", attachment: { mime: "audio/wav", data: bytesToBase64(data) } }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || "Não consegui transcrever agora.");
+    const segs = Array.isArray(j.segments) ? j.segments.filter((s) => s && s.text) : [];
+    if (!segs.length) throw new Error("Não encontrei fala nesse trecho. Dá para escrever a legenda na mão.");
+    spoken = segs;
+    setScript(segs.map((s) => s.text).join("\n"));
+    setSeg("#caption", "tiktok");
+    setStatus("Fala transcrita. Se o clipe começa no zero e não foi cortado no ritmo, a legenda segue o tempo da fala.");
+  } catch (e) {
+    setStatus((e && e.message) || "Não consegui transcrever.", true);
+  } finally {
+    busy = false;
+    $("#transcribeBtn").disabled = false;
+  }
+});
+
 $("#captionBtn").addEventListener("click", async () => {
-  const about = $("#about").value.trim() || $("#text").value.trim();
-  if (!about) { setStatus("Escreva sobre o que é o vídeo para a Nexa criar a legenda.", true); return; }
+  const about = $("#about").value.trim() || $("#idea").value.trim() || $("#script").value.trim();
+  if (!about) { setStatus("Escreva sobre o que é o vídeo para a Nexa criar a legenda do post.", true); return; }
   const box = $("#caption");
   box.style.display = "block";
   box.textContent = "Criando legenda…";
@@ -524,7 +1391,7 @@ $("#captionBtn").addEventListener("click", async () => {
         model: "rapida",
         search: false,
         profile: { videoMode: true, emojis: true },
-        messages: [{ role: "user", content: `Crie só a legenda de um post de TikTok sobre: ${about}. Uma frase de gancho + 4 a 6 hashtags. Responda só com o texto da legenda, sem explicações, sem markdown.` }],
+        messages: [{ role: "user", content: "Crie só a legenda de um post de TikTok sobre: " + about + ". Uma frase de gancho + 4 a 6 hashtags. Responda só com o texto da legenda, sem explicações, sem markdown." }],
       }),
     });
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "Erro");
@@ -536,7 +1403,7 @@ $("#captionBtn").addEventListener("click", async () => {
 });
 
 $("#copyCaption").addEventListener("click", async () => {
-  try { await navigator.clipboard.writeText($("#caption").textContent); setStatus("Legenda copiada!"); } catch {}
+  try { await navigator.clipboard.writeText($("#caption").textContent); setStatus("Legenda copiada!"); } catch (e) {}
 });
 </script>
 </body>

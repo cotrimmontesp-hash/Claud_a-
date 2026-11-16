@@ -35,25 +35,64 @@ export async function saveReminders(list: Reminder[]): Promise<void> {
   } catch {}
 }
 
+const webTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const MAX_WEB_DELAY = 2 ** 30;
+let webPermAsked = false;
+
+function askWebPermission() {
+  if (Platform.OS !== "web" || webPermAsked || typeof Notification === "undefined") return;
+  webPermAsked = true;
+  try {
+    if (Notification.permission === "default") void Notification.requestPermission().catch(() => {});
+  } catch {}
+}
+
+function clearWeb(id: string) {
+  const timer = webTimers.get(id);
+  if (timer) clearTimeout(timer);
+  webTimers.delete(id);
+}
+
+function fireWeb(r: Reminder) {
+  try {
+    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+      new Notification("⏰ Lembrete da Nexa", { body: r.text, icon: "/icon-192.png" });
+    } else alert("⏰ Lembrete da Nexa: " + r.text);
+  } catch {}
+}
+
+function armWeb(r: Reminder) {
+  clearWeb(r.id);
+  const ms = new Date(r.when).getTime() - Date.now();
+  if (ms <= 500) {
+    if (ms > -60 * 1000) fireWeb(r);
+    return;
+  }
+  const delay = Math.min(ms, MAX_WEB_DELAY);
+  const timer = setTimeout(() => {
+    webTimers.delete(r.id);
+    armWeb(r);
+  }, delay);
+  webTimers.set(r.id, timer);
+}
+
+/** No site, o aviso some quando a aba fecha. Isto reativa os que ainda vão acontecer. */
+export function ensureWebReminders(list: Reminder[]) {
+  if (Platform.OS !== "web" || typeof window === "undefined") return;
+  askWebPermission();
+  const ids = new Set(list.map((r) => r.id));
+  for (const id of [...webTimers.keys()]) if (!ids.has(id)) clearWeb(id);
+  for (const r of list) {
+    if (new Date(r.when).getTime() > Date.now() + 500) armWeb(r);
+    else clearWeb(r.id);
+  }
+}
+
 /** Agenda a notificação. No site, só avisa se a aba estiver aberta. */
-export async function scheduleReminder(text: string, date: Date): Promise<string | undefined> {
+export async function scheduleReminder(text: string, date: Date, id?: string): Promise<string | undefined> {
   if (Platform.OS === "web") {
-    if (typeof window !== "undefined" && "Notification" in window) {
-      // pede permissão sem travar o app (o navegador mostra o pedido e a pessoa responde quando quiser)
-      try {
-        if (Notification.permission === "default") void Notification.requestPermission().catch(() => {});
-      } catch {}
-      const ms = date.getTime() - Date.now();
-      if (ms > 0 && ms < 2 ** 31 - 1) {
-        setTimeout(() => {
-          try {
-            if (Notification.permission === "granted") new Notification("⏰ Lembrete da Nexa", { body: text, icon: "/icon-192.png" });
-            else alert("⏰ Lembrete da Nexa: " + text);
-          } catch {}
-        }, ms);
-      }
-    }
-    return undefined;
+    askWebPermission();
+    return id ? `web:${id}` : undefined;
   }
 
   let perm = await Notifications.getPermissionsAsync();
@@ -75,6 +114,7 @@ export async function scheduleReminder(text: string, date: Date): Promise<string
 }
 
 export async function cancelReminder(r: Reminder): Promise<void> {
+  clearWeb(r.id);
   if (Platform.OS !== "web" && r.notifId) {
     try {
       await Notifications.cancelScheduledNotificationAsync(r.notifId);
@@ -82,14 +122,21 @@ export async function cancelReminder(r: Reminder): Promise<void> {
   }
 }
 
-const TAG = /\[\[LEMBRETE\|(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})\|([^\]\n]{1,200})\]\]/g;
+const TAG = /\[\[LEMBRETE\|(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?)\|([^\]\n]{1,200})\]\]/g;
+
+/** Horário local, mesmo se o texto vier com segundos. Não usa o fuso UTC. */
+export function parseLocalDate(when: string): Date {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/.exec(when.trim());
+  if (!m) return new Date(NaN);
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6] || 0), 0);
+}
 
 /** Separa os pedidos de lembrete que a IA colocou no fim da resposta. */
 export function extractReminders(text: string): { clean: string; found: { date: Date; text: string }[] } {
   const found: { date: Date; text: string }[] = [];
   const clean = text
     .replace(TAG, (_m, when: string, what: string) => {
-      const date = new Date(when); // sem "Z": horário local do aparelho
+      const date = parseLocalDate(when);
       if (!isNaN(date.getTime())) found.push({ date, text: what.trim() });
       return "";
     })
@@ -104,7 +151,8 @@ export function hidePartialTag(text: string): string {
 
 export function formatWhen(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)} às ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const year = d.getFullYear() !== new Date().getFullYear() ? `/${d.getFullYear()}` : "";
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}${year} às ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 /** Data e hora local, no formato que a IA entende. */
