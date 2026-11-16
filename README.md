@@ -12,7 +12,13 @@ Site: https://claude-ia-steel.vercel.app
 
 ## Batida do editor
 
-No botão **Montar edit**, se a pessoa não escolher uma música, o editor cria no próprio aparelho uma batida sintética de cerca de 32 segundos (grave a 120 BPM). É uma onda gerada na hora, original deste app, sem amostra de música de terceiros e sem arquivo protegido no repositório.
+No botão **Montar edit**, se a pessoa não escolher uma música, o editor cria no próprio aparelho uma batida sintética de cerca de 32 segundos (grave a 120 BPM). É uma onda gerada na hora, original deste app, sem amostra de música de terceiros e sem arquivo protegido no repositório. A Action **Edit automática** usa a mesma batida, gerada de novo no servidor pelo `scripts/edit-automatica.js`.
+
+## Edit automática no GitHub
+
+No Actions, o workflow `Edit automática` (`workflow_dispatch`) pede o nome do jogador e a duração. Ele busca vídeos com o yt-dlp normal, baixa trechos curtos, monta um 9:16 e publica o mp4 nos artifacts. Se o YouTube pedir para entrar na conta para provar que não é um robô, o job para e mostra o erro. Não há proxy, cookie nem contorno de bloqueio.
+
+Para disparar pelo site, crie na Vercel a variável `GITHUB_DISPATCH_TOKEN` (token do GitHub com permissão de actions, só no painel, nunca no código) e, se quiser, `GITHUB_DISPATCH_REF` (padrão `grok-melhorias`). O botão «Pedir este edit no GitHub» chama `/api/edit`, que lê essa variável.
 
 ## Gerar o APK
 1. Crie uma conta grátis em https://expo.dev
