@@ -199,7 +199,7 @@ function ChatScreen() {
     }
     if (added.length) setRemindersAll([...remindersRef.current, ...added]);
     if (added.length && Platform.OS === "web") {
-      lines.push("_No site, o aviso só aparece se esta aba estiver aberta. No app do celular a notificação chega mesmo fechado._");
+      lines.push("*No site, o aviso só aparece se esta aba estiver aberta. No app do celular a notificação chega mesmo fechado.*");
     }
     return lines;
   }
