@@ -64,6 +64,14 @@ progress{width:100%;height:10px;border-radius:6px;overflow:hidden;accent-color:v
 
 <main>
   <div class="card">
+    <h2>Montar edit de futebol</h2>
+    <p class="muted">Junta de 3 a 10 lances da galeria num vídeo de cerca de 30 segundos, no ritmo, em 9:16, com punch-in, flash e legenda grande. A música é opcional: se você não escolher, o editor cria uma batida própria, sem música de terceiros.</p>
+    <label for="player">Nome do jogador</label>
+    <input id="player" type="text" maxlength="40" placeholder="Ex.: Neymar" autocomplete="off">
+    <button class="btn main" id="montarBtn" type="button" style="margin-top:12px">⚽ Montar edit</button>
+  </div>
+
+  <div class="card">
     <h2>Preset de edit 9:16</h2>
     <p class="muted">Um toque já deixa o vídeo no formato do TikTok, com o efeito certo para futebol ou curiosidade.</p>
     <div class="seg" id="preset" style="margin-top:10px">
@@ -783,6 +791,101 @@ async function generate() {
   }
 }
 
+async function askEditLines(player) {
+  const fallback = L.fallbackCaptions(player);
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 12000);
+    const r = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: "rapida",
+        search: false,
+        profile: { videoMode: true, emojis: false },
+        messages: [{
+          role: "user",
+          content: "Edit de TikTok de futebol sobre o jogador " + player + ". Responda só com 5 linhas, uma por linha, 2 a 4 palavras, em português do Brasil. A primeira linha é o gancho com o nome. Sem hashtag, sem número, sem explicação.",
+        }],
+      }),
+    });
+    clearTimeout(timer);
+    if (!r.ok) return fallback;
+    const lines = L.parseCaptionLines((await r.text()).replace(/\*\*/g, ""));
+    return lines.length >= 4 ? lines.slice(0, 5) : fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+
+async function montarEdit() {
+  if (busy) return;
+  const player = $("#player").value.trim();
+  if (player.length < 2) { setStatus("Escreva o nome do jogador.", true); return; }
+  const base = (beatBackup || clips).map((c) => ({ ...c }));
+  if (base.length < 3 || base.length > 10) {
+    setStatus("Escolha de 3 a 10 clipes da galeria antes de montar o edit.", true);
+    return;
+  }
+  busy = true;
+  $("#montarBtn").disabled = true;
+  $("#go").disabled = true;
+  const bar = $("#bar");
+  bar.classList.remove("hidden");
+  bar.value = 4;
+  let handoff = false;
+  try {
+    setStatus("Aplicando o preset Futebol…");
+    $("#preset button[data-v='futebol']").click();
+    let musicFile = $("#music").files[0];
+    if (!musicFile) {
+      setStatus("Criando a batida (som original, sem música de terceiros)…");
+      const wav = L.makeBeatWav(32, 120);
+      musicFile = new File([wav], "nexa-batida.wav", { type: "audio/wav" });
+      const dt = new DataTransfer();
+      dt.items.add(musicFile);
+      $("#music").files = dt.files;
+    }
+    bar.value = 12;
+    setStatus("Escrevendo o gancho e as legendas…");
+    const lines = await askEditLines(player);
+    spoken = null;
+    setScript(lines.join("\n"));
+    setSeg("#caption", "tiktok");
+    bar.value = 22;
+    setStatus("Cortando no ritmo e distribuindo os lances…");
+    const audio = await audioSamples(musicFile);
+    if (!audio) throw new Error("Não consegui ler a música desse edit.");
+    const beats = L.detectBeats(audio.samples, audio.sampleRate);
+    const slices = L.planFootballEdit(base, beats, { target: 30, maxSlices: 12 });
+    if (slices.length < 3) throw new Error("Não deu para distribuir os clipes no ritmo.");
+    beatBackup = base;
+    clips.length = 0;
+    slices.forEach((s) => {
+      const src = base[s.clipIndex];
+      clips.push({ file: src.file, url: src.url, dur: src.dur, start: s.start, end: s.end, zoom: s.zoom });
+    });
+    renderClips();
+    $("#undoBeat").classList.remove("hidden");
+    const total = slices.reduce((acc, s) => acc + (s.end - s.start), 0);
+    setStatus("Montando cerca de " + Math.round(total) + " s de " + player + "…");
+    busy = false;
+    handoff = true;
+    await generate();
+    $("#go").disabled = false;
+  } catch (e) {
+    setStatus((e && e.message) || "Não consegui montar o edit.", true);
+  } finally {
+    if (!handoff) {
+      busy = false;
+      $("#go").disabled = false;
+    }
+    $("#montarBtn").disabled = false;
+  }
+}
+
+$("#montarBtn").addEventListener("click", montarEdit);
 $("#go").addEventListener("click", generate);
 
 function fileName() { return "nexa-" + new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-") + ".mp4"; }

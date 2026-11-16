@@ -159,12 +159,12 @@
   }
 
   function layoutCaption(text, W, H, style) {
-    const maxChars = style === "bar" ? 24 : style === "frase" ? 18 : 14;
+    const maxChars = style === "bar" ? 24 : style === "frase" ? 18 : 12;
     const maxLines = style === "frase" ? 4 : 2;
     const lines = wrap(String(text || "").toUpperCase(), maxChars).slice(0, maxLines);
     const shown = lines.length ? lines : [""];
     const longest = shown.reduce((m, l) => Math.max(m, l.length), 1);
-    const byWidth = Math.floor((W * 0.9) / (longest * 0.58));
+    const byWidth = Math.floor((W * 0.88) / (longest * 0.72));
     const byHeight = Math.floor(H * (style === "bar" ? 0.046 : 0.068));
     const size = Math.max(32, Math.min(byWidth, byHeight, style === "bar" ? 54 : 86));
     return { lines: shown, size };
@@ -547,6 +547,132 @@ function blurFilter(W, H, speed, flash, effect, range) {
     return { filter: v.concat(a).join(";"), overlap: d * (durations.length - 1) };
   }
 
+  function encodeWavPcm(pcm, sampleRate) {
+  const n = pcm.length;
+  const buf = new ArrayBuffer(44 + n * 2);
+  const v = new DataView(buf);
+  const s = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+  s(0, "RIFF");
+  v.setUint32(4, 36 + n * 2, true);
+  s(8, "WAVE");
+  s(12, "fmt ");
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true);
+  v.setUint16(22, 1, true);
+  v.setUint32(24, sampleRate, true);
+  v.setUint32(28, sampleRate * 2, true);
+  v.setUint16(32, 2, true);
+  v.setUint16(34, 16, true);
+  s(36, "data");
+  v.setUint32(40, n * 2, true);
+  new Int16Array(buf, 44).set(pcm);
+  return new Uint8Array(buf);
+}
+
+/** Batida sintética original (não é música de terceiros). 120 BPM, grave a cada tempo. */
+function makeBeatWav(seconds, bpm) {
+  const sr = 22050;
+  const dur = Math.max(8, Math.min(40, Number(seconds) || 32));
+  const tempo = Math.max(90, Math.min(150, Number(bpm) || 120));
+  const beat = 60 / tempo;
+  const n = Math.floor(sr * dur);
+  const pcm = new Int16Array(n);
+  let noise = 1;
+  for (let i = 0; i < n; i++) {
+    const t = i / sr;
+    const pos = t % beat;
+    let amp = 0;
+    if (pos < 0.1) amp += Math.sin(2 * Math.PI * 70 * pos) * Math.exp(-24 * pos);
+    const hat = (t + beat * 0.5) % beat;
+    if (hat < 0.02) {
+      noise = (noise * 1103515245 + 12345) & 0x7fffffff;
+      amp += ((noise / 0x7fffffff) * 2 - 1) * Math.exp(-hat * 100) * 0.45;
+    }
+    pcm[i] = Math.max(-32767, Math.min(32767, Math.round(amp * 28000)));
+  }
+  return encodeWavPcm(pcm, sr);
+}
+
+function fallbackCaptions(name) {
+  const n = String(name || "ELE").trim().replace(/\s+/g, " ").slice(0, 18).toUpperCase() || "ELE";
+  return [n + " CHEGOU", "OLHA ESSE LANCE", "NINGUÉM SEGURA", "QUE JOGADA", "NO FINAL"];
+}
+
+function parseCaptionLines(text) {
+  return String(text || "")
+    .split(/\n+/)
+    .map((s) => s.replace(/^\d+[.)\-\s]+/, "").replace(/^[-*•]\s*/, "").replace(/[*_#"]/g, "").trim())
+    .filter((s) => s && s.length <= 42 && s.split(/\s+/).length <= 6 && !/https?:/i.test(s))
+    .slice(0, 5);
+}
+
+/**
+ * Distribui os clipes no ritmo até cerca de 30 s.
+ * Cada corte vem do próximo clipe, em rodízio, para todos aparecerem.
+ */
+function planFootballEdit(clips, beatTimes, opts) {
+  const target = (opts && opts.target) || 30;
+  const maxSlices = (opts && opts.maxSlices) || 12;
+  const ranges = [];
+  (clips || []).forEach((c, idx) => {
+    const start = Math.max(0, Number(c.start) || 0);
+    let end = Number(c.end) > start ? Number(c.end) : Number(c.dur) > start ? Number(c.dur) : 0;
+    if (!(end > start + 0.25)) end = start + 6;
+    ranges.push({ idx, start, end, pos: start });
+  });
+  if (!ranges.length) return [];
+  let gaps = mergeGaps(beatTimes, 0.28, 200);
+  if (!gaps.length) gaps = [2, 2, 2, 2, 2, 2];
+  const trimmed = [];
+  let acc = 0;
+  for (const g of gaps) {
+    if (acc >= target - 0.25) break;
+    const piece = Math.min(g, round2(target - acc));
+    if (piece >= 0.35) {
+      trimmed.push(piece);
+      acc += piece;
+    }
+  }
+  const use = trimmed.length ? trimmed : gaps.slice();
+  const mergeShortest = () => {
+    let k = 0;
+    for (let i = 1; i < use.length; i++) if (use[i] < use[k]) k = i;
+    if (k < use.length - 1) {
+      use[k] += use[k + 1];
+      use.splice(k + 1, 1);
+    } else if (use.length > 1) {
+      use[k - 1] += use[k];
+      use.pop();
+    }
+  };
+  while (use.length > maxSlices) mergeShortest();
+  const slices = [];
+  let cursor = 0;
+  for (const gap of use) {
+    let placed = false;
+    for (let attempt = 0; attempt < ranges.length; attempt++) {
+      const r = ranges[cursor % ranges.length];
+      cursor++;
+      if (r.end - r.pos < 0.35) r.pos = r.start;
+      const take = Math.min(gap, r.end - r.pos);
+      if (take < 0.35) continue;
+      const end = round2(Math.min(r.end, r.pos + take));
+      slices.push({
+        clipIndex: r.idx,
+        start: round2(r.pos),
+        end,
+        zoom: slices.length % 2 === 0 ? 1 : 1.15,
+      });
+      r.pos = end;
+      if (r.pos >= r.end - 0.2) r.pos = r.start;
+      placed = true;
+      break;
+    }
+    if (!placed) break;
+  }
+  return slices;
+}
+
   return {
     PRESETS,
     dims,
@@ -567,5 +693,10 @@ function blurFilter(W, H, speed, flash, effect, range) {
     blurFilter,
     sliceFilter,
     xfadeFilter,
+    encodeWavPcm,
+    makeBeatWav,
+    fallbackCaptions,
+    parseCaptionLines,
+    planFootballEdit,
   };
 });

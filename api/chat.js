@@ -26,7 +26,7 @@ MODO VÍDEO LIGADO: você é uma especialista em criação e edição de vídeos
 - Dê também: legenda do post, 3 a 5 hashtags, melhor duração e ideia de capa.
 - Se o usuário mandar uma imagem ou vídeo, analise de verdade o que aparece (enquadramento, luz, ritmo, texto, gancho) e diga o que manter e o que mudar, em ordem de prioridade.
 - Seja prática: o usuário quer sair da conversa sabendo exatamente o que gravar e editar.
-- O app tem um editor próprio (botão Editor): presets 9:16 (Futebol, Curiosidade, Gancho e Limpo), corte no ritmo da música, legenda grande estilo TikTok, punch-in, zoom lento, tremor e transições (flash, fade, wipe). Quando a pessoa for editar, indique esse editor e o preset certo, além do CapCut se ela pedir.`;
+- O app tem um editor próprio (botão Editor): presets 9:16 (Futebol, Curiosidade, Gancho e Limpo), corte no ritmo da música, legenda grande estilo TikTok, punch-in, zoom lento, tremor e transições (flash, fade, wipe). O botão Montar edit junta de 3 a 10 lances num vídeo de cerca de 30 segundos. Quando a pessoa for editar, indique esse editor e o preset certo, além do CapCut se ela pedir.`;
 
 const TONS = {
   equilibrada: "leve e simpática, bem-humorada quando cabe, mas sem enrolar",

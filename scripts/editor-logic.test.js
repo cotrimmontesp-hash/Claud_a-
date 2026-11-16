@@ -88,6 +88,24 @@ assert.ok(xf.filter.includes("xfade=transition=wipeleft"));
 assert.ok(xf.filter.includes("acrossfade"));
 assert.equal(L.xfadeFilter([0.2, 2], "fade"), null, "não cruza um clipe curto demais");
 
+const beatAudio = L.decodeWav(L.makeBeatWav(32, 120));
+assert.ok(beatAudio && beatAudio.samples.length > 22050 * 30, "batida sintética é um wav de ~32 s");
+const beatTimes = L.detectBeats(beatAudio.samples, beatAudio.sampleRate, { minGap: 0.3, maxGap: 0.8 });
+assert.ok(beatTimes.length >= 40, "a batida tem tempos regulares: " + beatTimes.length);
+const four = [0, 1, 2, 3].map(() => ({ start: 0, end: 8, dur: 8 }));
+const editPlan = L.planFootballEdit(four, beatTimes, { target: 30, maxSlices: 12 });
+const planDur = editPlan.reduce((a, s) => a + (s.end - s.start), 0);
+assert.ok(editPlan.length >= 4 && editPlan.length <= 12, "quantidade de cortes " + editPlan.length);
+assert.ok(planDur >= 24 && planDur <= 32, "duração do plano " + planDur);
+const used = new Set(editPlan.map((s) => s.clipIndex));
+assert.equal(used.size, 4, "os 4 clipes entram no edit");
+assert.ok(editPlan.every((s) => s.end > s.start));
+assert.ok(L.fallbackCaptions("Neymar")[0].includes("NEYMAR"));
+assert.deepEqual(
+  L.parseCaptionLines("1. NEYMAR CHEGOU\nOLHA ESSE LANCE\n- NINGUÉM SEGURA\nQUE JOGADA\nNO FINAL\nexplicação longa demais para virar legenda de tiktok agora"),
+  ["NEYMAR CHEGOU", "OLHA ESSE LANCE", "NINGUÉM SEGURA", "QUE JOGADA", "NO FINAL"]
+);
+
 assert.equal(L.PRESETS.futebol.fmt, "9:16");
 assert.equal(L.PRESETS.futebol.trans, "flash");
 assert.equal(L.PRESETS.curiosidade.effect, "zoom");
