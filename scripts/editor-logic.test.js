@@ -29,6 +29,14 @@ for (let b = 0.5; b < dur; b += 0.5) {
   const i = Math.floor(b * sr);
   for (let k = 0; k < 100 && i + k < samples.length; k++) samples[i + k] = Math.sin(k * 0.7) * (1 - k / 100);
 }
+const wavPath = "/tmp/nexa-e2e/beats.wav";
+if (fs.existsSync(wavPath)) {
+  const wavBeats = L.decodeWav(fs.readFileSync(wavPath));
+  assert.ok(wavBeats && wavBeats.samples.length > 1000, "le wav pcm");
+  const found = L.detectBeats(wavBeats.samples, wavBeats.sampleRate, { minGap: 0.3, maxGap: 1.2 });
+  assert.ok(found.length >= 8, "wav real de batidas: " + found.length);
+}
+
 const beats = L.detectBeats(samples, sr, { minGap: 0.3, maxGap: 1.2 });
 assert.ok(beats.length >= 5, "acha as batidas, veio " + beats.join(","));
 assert.ok(beats[0] === 0);

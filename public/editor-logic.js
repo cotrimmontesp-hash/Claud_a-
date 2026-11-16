@@ -269,7 +269,47 @@
     return slices;
   }
 
-  function detectBeats(samples, sampleRate, opts) {
+  function decodeWav(input) {
+  const bytes = input instanceof ArrayBuffer ? new Uint8Array(input) : input;
+  if (!bytes || bytes.byteLength < 44) return null;
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (view.getUint32(0, false) !== 0x52494646 || view.getUint32(8, false) !== 0x57415645) return null;
+  let offset = 12;
+  let format = 0;
+  let channels = 1;
+  let rate = 44100;
+  let bits = 16;
+  let dataOffset = 0;
+  let dataSize = 0;
+  while (offset + 8 <= view.byteLength) {
+    const id = view.getUint32(offset, false);
+    const size = view.getUint32(offset + 4, true);
+    const start = offset + 8;
+    if (id === 0x666d7420 && start + 16 <= view.byteLength) {
+      format = view.getUint16(start, true);
+      channels = view.getUint16(start + 2, true) || 1;
+      rate = view.getUint32(start + 4, true) || 44100;
+      bits = view.getUint16(start + 14, true);
+    } else if (id === 0x64617461) {
+      dataOffset = start;
+      dataSize = Math.min(size, view.byteLength - start);
+      break;
+    }
+    offset = start + size + (size % 2);
+  }
+  if (!dataSize || format !== 1 || (bits !== 16 && bits !== 8) || channels < 1) return null;
+  const frame = (bits / 8) * channels;
+  const count = Math.floor(dataSize / frame);
+  const samples = new Float32Array(count);
+  if (bits === 16) {
+    for (let i = 0; i < count; i++) samples[i] = view.getInt16(dataOffset + i * frame, true) / 32768;
+  } else {
+    for (let i = 0; i < count; i++) samples[i] = (view.getUint8(dataOffset + i * frame) - 128) / 128;
+  }
+  return { samples, sampleRate: rate };
+}
+
+function detectBeats(samples, sampleRate, opts) {
     const minGap = (opts && opts.minGap) || 0.3;
     const maxGap = (opts && opts.maxGap) || 1.2;
     const sr = sampleRate || 44100;
@@ -516,6 +556,7 @@ function blurFilter(W, H, speed, flash, effect, range) {
     phrasesFromSegments,
     layoutCaption,
     captionPlan,
+    decodeWav,
     detectBeats,
     buildBeatSlices,
     mergeGaps,
