@@ -39,14 +39,16 @@ export async function saveReminders(list: Reminder[]): Promise<void> {
 export async function scheduleReminder(text: string, date: Date): Promise<string | undefined> {
   if (Platform.OS === "web") {
     if (typeof window !== "undefined" && "Notification" in window) {
+      // pede permissão sem travar o app (o navegador mostra o pedido e a pessoa responde quando quiser)
       try {
-        if (Notification.permission !== "granted") await Notification.requestPermission();
+        if (Notification.permission === "default") void Notification.requestPermission().catch(() => {});
       } catch {}
       const ms = date.getTime() - Date.now();
       if (ms > 0 && ms < 2 ** 31 - 1) {
         setTimeout(() => {
           try {
-            new Notification("⏰ Lembrete da Nexa", { body: text, icon: "/icon-192.png" });
+            if (Notification.permission === "granted") new Notification("⏰ Lembrete da Nexa", { body: text, icon: "/icon-192.png" });
+            else alert("⏰ Lembrete da Nexa: " + text);
           } catch {}
         }, ms);
       }
