@@ -219,6 +219,64 @@ async function chatNative(prov, body, trimmed, modelKey, attachment, search, res
   res.end();
 }
 
+// ---------- Pesquisa grátis na internet (DuckDuckGo + Wikipédia, sem chave) ----------
+const decodeHtml = (t) =>
+  t
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;|&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+async function searchDuck(q) {
+  const r = await fetch("https://html.duckduckgo.com/html/?kl=br-pt&q=" + encodeURIComponent(q), {
+    headers: { "User-Agent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130 Mobile Safari/537.36", "Accept-Language": "pt-BR,pt;q=0.9" },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!r.ok) throw new Error("ddg " + r.status);
+  const html = await r.text();
+  const out = [];
+  const re = /<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g;
+  let m;
+  while ((m = re.exec(html)) && out.length < 6) {
+    let url = m[1];
+    const u = url.match(/uddg=([^&]+)/);
+    if (u) url = decodeURIComponent(u[1]);
+    if (url.startsWith("//")) url = "https:" + url;
+    if (/duckduckgo\.com\/y\.js/.test(url)) continue; // anúncio
+    out.push({ title: decodeHtml(m[2]), url, snippet: decodeHtml(m[3]) });
+  }
+  return out;
+}
+
+async function searchWiki(q) {
+  const r = await fetch(
+    "https://pt.wikipedia.org/w/api.php?action=query&list=search&format=json&srlimit=2&utf8=1&srsearch=" + encodeURIComponent(q),
+    { headers: { "User-Agent": "NexaIA/1.0 (claude-ia-steel.vercel.app)" }, signal: AbortSignal.timeout(6000) }
+  );
+  if (!r.ok) return [];
+  const j = await r.json();
+  return (j.query?.search || []).map((x) => ({
+    title: x.title + " – Wikipédia",
+    url: "https://pt.wikipedia.org/wiki/" + encodeURIComponent(x.title.replace(/ /g, "_")),
+    snippet: decodeHtml(x.snippet || ""),
+  }));
+}
+
+async function webSearch(q) {
+  const query = q.replace(/\s+/g, " ").slice(0, 200);
+  const [duck, wiki] = await Promise.all([
+    searchDuck(query).catch((e) => (console.error("ddg fail", e.message), [])),
+    searchWiki(query).catch(() => []),
+  ]);
+  const seen = new Set();
+  return [...duck, ...wiki].filter((x) => x.url && !seen.has(x.url) && seen.add(x.url)).slice(0, 7);
+}
+
 // Modelos usados na pesquisa (o plano grátis só libera a pesquisa em alguns).
 const SEARCH_MODELS = ["gemini-flash-latest", "gemini-3-flash-preview", "gemini-3.1-flash-lite", "gemini-flash-lite-latest"];
 
@@ -505,14 +563,19 @@ module.exports = async (req, res) => {
 
   const attachment = cleanAttachment(body.attachment);
   const lastUser = [...trimmed].reverse().find((m) => m.role === "user")?.content || "";
-  const search = !!prov.key && (body.search === true || (body.search !== false && PRECISA_PESQUISA.test(lastUser)));
-  if (attachment || search) {
+  const search = body.search === true || (body.search !== false && PRECISA_PESQUISA.test(lastUser));
+  let results = [];
+  if (search && !attachment) {
+    results = await webSearch(lastUser);
+    console.log("search", results.length, "resultados");
+  }
+  if (attachment) {
     if (!prov.key) {
       res.status(400).json({ error: "Analisar fotos e vídeos precisa da chave do Google." });
       return;
     }
     try {
-      await chatNative(prov, body, trimmed, modelKey, attachment, search, res, isTest);
+      await chatNative(prov, body, trimmed, modelKey, attachment, false, res, isTest);
     } catch (e) {
       console.error("attach fail", e.name, e.message);
       if (!res.headersSent) res.status(500).json({ error: "Falha ao analisar o arquivo." });
@@ -528,7 +591,20 @@ module.exports = async (req, res) => {
     {
       stream: true,
       max_tokens: prov.gemini ? 8192 : 2048,
-      messages: [{ role: "system", content: buildSystemPrompt(body.profile) }, ...trimmed],
+      messages: [
+        {
+          role: "system",
+          content:
+            buildSystemPrompt(body.profile) +
+            (results.length
+              ? `\n\nRESULTADOS DE UMA PESQUISA NA INTERNET FEITA AGORA para a pergunta do usuário (use para responder com informação atual; se não for suficiente, diga que não encontrou com certeza; não invente; cite as fontes no texto quando usar, pelo nome do site):\n` +
+                results.map((r, i) => `[${i + 1}] ${r.title}\n${r.url}\n${r.snippet}`).join("\n\n")
+              : search
+              ? "\n\nO usuário pediu uma informação atual, mas a pesquisa na internet não trouxe resultados agora. Avise que não conseguiu pesquisar e que a sua informação pode estar desatualizada."
+              : ""),
+        },
+        ...trimmed,
+      ],
     },
     modelKey === "esperta" ? 12000 : 25000
   );
@@ -566,9 +642,14 @@ module.exports = async (req, res) => {
         } catch {}
       }
     }
+    if (results.length) {
+      const fontes = "\n\n**Fontes:**\n" + results.slice(0, 4).map((r) => `- [${r.title}](${r.url})`).join("\n");
+      full += fontes;
+      if (!isTest) res.write(fontes);
+    }
     if (isTest) {
       res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify({ ok: true, ms: Date.now() - tStart, text: full }));
+      res.end(JSON.stringify({ ok: true, ms: Date.now() - tStart, results: results.length, text: full.slice(0, 1200) }));
       return;
     }
     res.end();

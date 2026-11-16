@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { DEFAULT_PROFILE, Profile, Tone } from "./storage";
+import { Reminder, formatWhen } from "./reminders";
 import { colors } from "./theme";
 
 const TONES: { key: Tone; label: string; desc: string }[] = [
@@ -14,10 +15,13 @@ type Props = {
   profile: Profile;
   onChange: (p: Profile) => void;
   onClose: () => void;
+  reminders: Reminder[];
+  onRemoveReminder: (r: Reminder) => void;
 };
 
-export default function Settings({ profile, onChange, onClose }: Props) {
-  const [tab, setTab] = useState<"jeito" | "memoria">("jeito");
+export default function Settings({ profile, onChange, onClose, reminders, onRemoveReminder }: Props) {
+  const [tab, setTab] = useState<"jeito" | "memoria" | "lembretes">("jeito");
+  const upcoming = [...reminders].sort((a, b) => a.when.localeCompare(b.when));
   const [newMemory, setNewMemory] = useState("");
   const [confirmClear, setConfirmClear] = useState(false);
 
@@ -48,10 +52,39 @@ export default function Settings({ profile, onChange, onClose }: Props) {
             🧠 Memória ({profile.memories.length})
           </Text>
         </Pressable>
+        <Pressable style={[s.tab, tab === "lembretes" && s.tabOn]} onPress={() => setTab("lembretes")}>
+          <Text style={[s.tabText, tab === "lembretes" && s.tabTextOn]}>⏰ ({reminders.length})</Text>
+        </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
-        {tab === "jeito" ? (
+        {tab === "lembretes" ? (
+          <>
+            <Text style={s.note}>
+              Para criar, é só pedir no chat. Ex.: "me lembra de postar o vídeo hoje às 18h" ou "amanhã às 9h me avisa
+              de editar o vídeo".
+            </Text>
+            {upcoming.length === 0 && <Text style={s.empty}>Nenhum lembrete marcado.</Text>}
+            {upcoming.map((r) => {
+              const d = new Date(r.when);
+              const past = d.getTime() < Date.now();
+              return (
+                <View key={r.id} style={[s.item, past && { opacity: 0.5 }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.itemText}>{r.text}</Text>
+                    <Text style={s.rowDesc}>
+                      {past ? "Já passou • " : ""}
+                      {formatWhen(d)}
+                    </Text>
+                  </View>
+                  <Pressable hitSlop={10} onPress={() => onRemoveReminder(r)}>
+                    <Text style={s.del}>✕</Text>
+                  </Pressable>
+                </View>
+              );
+            })}
+          </>
+        ) : tab === "jeito" ? (
           <>
             <Text style={s.label}>Nome da IA</Text>
             <TextInput

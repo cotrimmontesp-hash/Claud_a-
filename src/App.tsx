@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Linking,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -19,6 +20,17 @@ import * as Speech from "expo-speech";
 
 import { askNexa, createImage, Mode, updateMemory } from "./api";
 import { Attachment, pickMedia, shareImage, storeImage } from "./media";
+import {
+  Reminder,
+  cancelReminder,
+  extractReminders,
+  formatWhen,
+  hidePartialTag,
+  loadReminders,
+  saveReminders,
+  scheduleReminder,
+} from "./reminders";
+import { API_URL } from "./api";
 import {
   ChatMessage,
   Conversation,
@@ -75,6 +87,9 @@ function ChatScreen() {
   const [attachment, setAttachment] = useState<Attachment | null>(null);
   const [imageMode, setImageMode] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [searchOn, setSearchOn] = useState(false);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const remindersRef = useRef<Reminder[]>([]);
 
   const scrollRef = useRef<ScrollView>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -82,7 +97,9 @@ function ChatScreen() {
 
   useEffect(() => {
     (async () => {
-      const [c, m, p] = await Promise.all([loadConversations(), loadMode(), loadProfile()]);
+      const [c, m, p, r] = await Promise.all([loadConversations(), loadMode(), loadProfile(), loadReminders()]);
+      remindersRef.current = r;
+      setReminders(r);
       convsRef.current = c;
       setConvs(c);
       setCurrentId(c[0]?.id ?? null);
@@ -153,13 +170,56 @@ function ChatScreen() {
     }
   }
 
+  function showNotice(t: string) {
+    setNotice(t);
+    setTimeout(() => setNotice(null), 6000);
+  }
+
+  function setRemindersAll(next: Reminder[]) {
+    remindersRef.current = next;
+    setReminders(next);
+    saveReminders(next);
+  }
+
+  async function createReminders(found: { date: Date; text: string }[]): Promise<string[]> {
+    const lines: string[] = [];
+    const added: Reminder[] = [];
+    for (const f of found) {
+      if (f.date.getTime() < Date.now() - 60000) {
+        lines.push(`⚠️ Não marquei "${f.text}": o horário ${formatWhen(f.date)} já passou.`);
+        continue;
+      }
+      try {
+        const notifId = await scheduleReminder(f.text, f.date);
+        added.push({ id: newId(), when: f.date.toISOString(), text: f.text, notifId });
+        lines.push(`⏰ Lembrete marcado: **${f.text}** — ${formatWhen(f.date)}`);
+      } catch (e: any) {
+        lines.push(`⚠️ ${e?.message || "Não consegui marcar o lembrete."}`);
+      }
+    }
+    if (added.length) setRemindersAll([...remindersRef.current, ...added]);
+    if (added.length && Platform.OS === "web") {
+      lines.push("_No site, o aviso só aparece se esta aba estiver aberta. No app do celular a notificação chega mesmo fechado._");
+    }
+    return lines;
+  }
+
+  async function removeReminder(r: Reminder) {
+    await cancelReminder(r);
+    setRemindersAll(remindersRef.current.filter((x) => x.id !== r.id));
+  }
+
+  function openEditor() {
+    if (Platform.OS === "web" && typeof window !== "undefined") window.location.href = "/editor.html";
+    else Linking.openURL(`${API_URL}/editor.html`);
+  }
+
   async function attach() {
     try {
       const a = await pickMedia();
       if (a) setAttachment(a);
     } catch (e: any) {
-      setNotice(e?.message || "Não consegui abrir esse arquivo.");
-      setTimeout(() => setNotice(null), 6000);
+      showNotice(e?.message || "Não consegui abrir esse arquivo.");
     }
   }
 
@@ -218,12 +278,18 @@ function ChatScreen() {
           profileRef.current,
           (t) => {
             full = t;
-            setStreaming(t);
+            setStreaming(hidePartialTag(t));
             scrollDown();
           },
           controller.signal,
-          att ? { mime: att.mime, data: att.data } : undefined
+          att ? { mime: att.mime, data: att.data } : undefined,
+          searchOn
         );
+        const { clean, found } = extractReminders(full);
+        if (found.length) {
+          const lines = await createReminders(found);
+          full = [clean, ...lines].filter(Boolean).join("\n\n");
+        } else full = clean || full;
       }
     } catch (e: any) {
       if (e?.name !== "AbortError" && !controller.signal.aborted) {
@@ -438,10 +504,16 @@ function ChatScreen() {
                 style={[s.modeChip, profile.videoMode && s.modeChipOn]}
                 onPress={() => changeProfile({ ...profile, videoMode: !profile.videoMode })}
               >
-                <Text style={[s.modeChipText, profile.videoMode && { color: colors.text }]}>🎬 Modo Vídeo</Text>
+                <Text style={[s.modeChipText, profile.videoMode && { color: colors.text }]}>🎬 Vídeo</Text>
               </Pressable>
               <Pressable style={[s.modeChip, imageMode && s.modeChipOn]} onPress={() => setImageMode(!imageMode)}>
-                <Text style={[s.modeChipText, imageMode && { color: colors.text }]}>🖼️ Criar imagem</Text>
+                <Text style={[s.modeChipText, imageMode && { color: colors.text }]}>🖼️ Imagem</Text>
+              </Pressable>
+              <Pressable style={[s.modeChip, searchOn && s.modeChipOn]} onPress={() => setSearchOn(!searchOn)}>
+                <Text style={[s.modeChipText, searchOn && { color: colors.text }]}>🌐 Internet</Text>
+              </Pressable>
+              <Pressable style={s.modeChip} onPress={openEditor}>
+                <Text style={s.modeChipText}>🎞️ Editor</Text>
               </Pressable>
             </View>
             {attachment && (
@@ -501,7 +573,13 @@ function ChatScreen() {
 
       {/* Menu lateral no celular */}
       {showSettings && (
-        <Settings profile={profile} onChange={changeProfile} onClose={() => setShowSettings(false)} />
+        <Settings
+          profile={profile}
+          onChange={changeProfile}
+          onClose={() => setShowSettings(false)}
+          reminders={reminders}
+          onRemoveReminder={removeReminder}
+        />
       )}
 
       {!wide && sideOpen && !showSettings && (
@@ -689,7 +767,7 @@ const s = StyleSheet.create({
   tools: { flexDirection: "row", gap: 6, marginTop: 8 },
   tool: { backgroundColor: colors.panel, borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8 },
   toolText: { color: colors.muted, fontSize: 12 },
-  chipsRow: { flexDirection: "row", gap: 8, maxWidth: 760, width: "100%", alignSelf: "center", marginBottom: 8 },
+  chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, maxWidth: 760, width: "100%", alignSelf: "center", marginBottom: 8 },
   modeChip: {
     borderWidth: 1,
     borderColor: colors.border,

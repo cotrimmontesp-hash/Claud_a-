@@ -1,6 +1,7 @@
 import { Platform } from "react-native";
 import { fetch as expoFetch } from "expo/fetch";
 import type { Profile } from "./storage";
+import { nowLocal } from "./reminders";
 
 // No site, a API fica no mesmo endereço. No app (Android/iPhone), usa o endereço da Vercel.
 export const API_URL = Platform.OS === "web" ? "" : "https://claude-ia-steel.vercel.app";
@@ -24,6 +25,7 @@ function profileForServer(p: Profile) {
     dislikes: p.dislikes,
     likes: p.likes,
     videoMode: p.videoMode,
+    ...nowLocal(),
   };
 }
 
@@ -37,12 +39,13 @@ export async function askNexa(
   profile: Profile,
   onChunk: (full: string) => void,
   signal?: AbortSignal,
-  attachment?: { mime: string; data: string }
+  attachment?: { mime: string; data: string },
+  search?: boolean
 ): Promise<string> {
   const res = await doFetch(`${API_URL}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, model: mode, profile: profileForServer(profile), attachment }),
+    body: JSON.stringify({ messages, model: mode, profile: profileForServer(profile), attachment, search: search || undefined }),
     signal,
   });
 
