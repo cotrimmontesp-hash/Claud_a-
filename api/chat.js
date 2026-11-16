@@ -177,6 +177,30 @@ async function chatWithAttachment(prov, body, trimmed, modelKey, attachment, res
   res.end();
 }
 
+// Gerador grátis de imagens (pollinations.ai). O pedido vai em inglês para sair melhor.
+async function pollinations(prompt, res, googleErr) {
+  try {
+    const seed = Math.floor(Math.random() * 1e9);
+    const url =
+      "https://image.pollinations.ai/prompt/" +
+      encodeURIComponent(prompt.slice(0, 900)) +
+      `?width=1024&height=1024&nologo=true&safe=true&seed=${seed}`;
+    const r = await fetch(url, { signal: AbortSignal.timeout(55000) });
+    const type = r.headers.get("content-type") || "";
+    if (!r.ok || !type.startsWith("image/")) {
+      const t = (await r.text().catch(() => "")).slice(0, 300);
+      console.error("pollinations", r.status, type, t);
+      res.status(502).json({ error: "Não consegui criar a imagem agora. Tente de novo daqui a pouco.", detail: t || googleErr });
+      return;
+    }
+    const buf = Buffer.from(await r.arrayBuffer());
+    res.status(200).json({ mime: type.split(";")[0], data: buf.toString("base64"), text: "", model: "pollinations" });
+  } catch (e) {
+    console.error("pollinations fail", e.name, e.message);
+    res.status(502).json({ error: "A criação de imagem demorou demais. Tente de novo.", detail: e.message });
+  }
+}
+
 // Cria uma imagem a partir de um pedido em texto.
 async function createImage(prov, body, res) {
   const prompt = str(body.prompt, 2000);
@@ -184,8 +208,10 @@ async function createImage(prov, body, res) {
     res.status(400).json({ error: "Descreva a imagem que você quer." });
     return;
   }
+  // 1) Tenta o Google (só funciona se a conta tiver cota de imagem).
+  // 2) Se não der, usa o Pollinations (gerador de imagens grátis, sem chave).
   if (!prov.key) {
-    res.status(400).json({ error: "Criar imagens precisa da chave do Google." });
+    await pollinations(prompt, res, "");
     return;
   }
   const parts = [{ text: `Crie uma imagem: ${prompt}` }];
@@ -202,13 +228,7 @@ async function createImage(prov, body, res) {
     55000
   );
   if (!out.r) {
-    const semCota = out.lastStatus === 429 || /quota|free tier|billing/i.test(out.lastErr);
-    res.status(502).json({
-      error: semCota
-        ? "O plano grátis do Google não liberou criar imagens agora. Tente mais tarde."
-        : "Não consegui criar a imagem, tente de novo.",
-      detail: out.lastErr,
-    });
+    await pollinations(prompt, res, out.lastErr);
     return;
   }
   try {
