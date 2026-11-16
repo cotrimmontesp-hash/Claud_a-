@@ -66,6 +66,13 @@ function buildSystemPrompt(p = {}) {
   if (likes.length)
     s += `\n\nExemplos de respostas que o usuário curtiu (siga um estilo parecido):\n${likes.map((m) => "- " + m).join("\n")}`;
   if (p.videoMode) s += VIDEO_PROMPT;
+  const agora = str(p.now, 40);
+  if (agora) {
+    s += `\n\nData e hora agora para o usuário: ${agora}${p.tz ? ` (fuso ${str(p.tz, 40)})` : ""}.
+LEMBRETES: o app consegue criar lembretes com notificação no celular. Se o usuário pedir para lembrar, avisar ou alarmar algo em um horário, confirme em uma frase curta e coloque na ÚLTIMA linha, exatamente neste formato (horário local dele, 24h):
+[[LEMBRETE|AAAA-MM-DDTHH:MM|texto curto do lembrete]]
+Use um bloco desses para cada lembrete. Se faltar o horário, pergunte antes de criar. Nunca use esse formato em outras situações.`;
+  }
   return s;
 }
 
@@ -128,11 +135,11 @@ function cleanAttachment(a) {
   return { mime, data };
 }
 
-// Conversa com anexo (foto ou vídeo): usa a API própria do Gemini, em streaming.
-async function chatWithAttachment(prov, body, trimmed, modelKey, attachment, res) {
+// Conversa pela API própria do Gemini (com anexo e/ou pesquisa no Google), em streaming.
+async function chatNative(prov, body, trimmed, modelKey, attachment, search, res, isTest) {
   const contents = trimmed.map((m, i) => {
     const parts = [{ text: m.content || "." }];
-    if (i === trimmed.length - 1 && m.role === "user") {
+    if (attachment && i === trimmed.length - 1 && m.role === "user") {
       parts.push({ inline_data: { mime_type: attachment.mime, data: attachment.data } });
     }
     return { role: m.role === "assistant" ? "model" : "user", parts };
@@ -142,8 +149,19 @@ async function chatWithAttachment(prov, body, trimmed, modelKey, attachment, res
     prov,
     models,
     {
-      systemInstruction: { parts: [{ text: buildSystemPrompt(body.profile) }] },
+      systemInstruction: {
+        parts: [
+          {
+            text:
+              buildSystemPrompt(body.profile) +
+              (search
+                ? "\n\nVocê pode pesquisar no Google. Use a pesquisa para informações atuais (notícias, trends, preços, resultados, datas) e responda com o que encontrou, sem inventar."
+                : ""),
+          },
+        ],
+      },
       contents,
+      ...(search ? { tools: [{ google_search: {} }] } : {}),
       generationConfig: { maxOutputTokens: 8192 },
     },
     true,
@@ -158,6 +176,12 @@ async function chatWithAttachment(prov, body, trimmed, modelKey, attachment, res
   const reader = out.r.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let full = "";
+  const sources = new Map();
+  const write = (t) => {
+    full += t;
+    if (!isTest) res.write(t);
+  };
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -169,13 +193,29 @@ async function chatWithAttachment(prov, body, trimmed, modelKey, attachment, res
       if (!l.startsWith("data:")) continue;
       try {
         const json = JSON.parse(l.slice(5).trim());
-        const parts = json.candidates?.[0]?.content?.parts || [];
-        for (const part of parts) if (part.text && !part.thought) res.write(part.text);
+        const cand = json.candidates?.[0];
+        const parts = cand?.content?.parts || [];
+        for (const part of parts) if (part.text && !part.thought) write(part.text);
+        for (const ch of cand?.groundingMetadata?.groundingChunks || []) {
+          if (ch.web?.uri && sources.size < 5) sources.set(ch.web.uri, ch.web.title || ch.web.uri);
+        }
       } catch {}
     }
   }
+  if (sources.size) {
+    write("\n\n**Fontes:**\n" + [...sources].map(([uri, title]) => `- [${title}](${uri})`).join("\n"));
+  }
+  if (isTest) {
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ ok: true, model: out.model, sources: sources.size, text: full.slice(0, 600) }));
+    return;
+  }
   res.end();
 }
+
+// Perguntas que pedem informação de hoje: liga a pesquisa sozinha.
+const PRECISA_PESQUISA =
+  /\b(hoje|ontem|agora|atual|atualmente|recente|últim[oa]s?|noticias?|notícias?|trend(s|ing)?|em alta|viral|lançamento|lançou|preço|cotação|placar|resultado|jogo de hoje|quem ganhou|tempo em|previsão|2025|2026|2027)\b/i;
 
 // Transforma o pedido do usuário num prompt de imagem em inglês, fiel ao que ele pediu.
 async function englishImagePrompt(prov, prompt) {
@@ -407,8 +447,9 @@ module.exports = async (req, res) => {
   }
   if (isTest) {
     req.body = {
-      messages: [{ role: "user", content: "Diga só: estou funcionando!" }],
+      messages: [{ role: "user", content: str(req.query.q, 300) || "Diga só: estou funcionando!" }],
       model: req.query.teste === "esperta" ? "esperta" : "rapida",
+      search: req.query.teste === "busca" ? true : undefined,
     };
   } else if (req.method !== "POST") {
     res.status(405).json({ error: "Use POST" });
@@ -453,13 +494,15 @@ module.exports = async (req, res) => {
   }
 
   const attachment = cleanAttachment(body.attachment);
-  if (attachment) {
+  const lastUser = [...trimmed].reverse().find((m) => m.role === "user")?.content || "";
+  const search = !!prov.key && (body.search === true || (body.search !== false && PRECISA_PESQUISA.test(lastUser)));
+  if (attachment || search) {
     if (!prov.key) {
       res.status(400).json({ error: "Analisar fotos e vídeos precisa da chave do Google." });
       return;
     }
     try {
-      await chatWithAttachment(prov, body, trimmed, modelKey, attachment, res);
+      await chatNative(prov, body, trimmed, modelKey, attachment, search, res, isTest);
     } catch (e) {
       console.error("attach fail", e.name, e.message);
       if (!res.headersSent) res.status(500).json({ error: "Falha ao analisar o arquivo." });
