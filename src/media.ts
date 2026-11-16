@@ -83,18 +83,33 @@ export async function storeImage(base64: string, mime: string): Promise<string> 
   return path;
 }
 
+function imageMime(uri: string): string {
+  const fromData = uri.match(/^data:(image\/[a-z0-9.+-]+);/i);
+  if (fromData) return fromData[1].toLowerCase();
+  if (/\.jpe?g($|\?)/i.test(uri)) return "image/jpeg";
+  if (/\.webp($|\?)/i.test(uri)) return "image/webp";
+  return "image/png";
+}
+
+function imageExt(mime: string): string {
+  if (mime.includes("jpeg")) return "jpg";
+  if (mime.includes("webp")) return "webp";
+  return "png";
+}
+
 /** Salva ou compartilha a imagem (no celular abre o menu de compartilhar; no site baixa o arquivo). */
 export async function shareImage(uri: string): Promise<void> {
+  const mime = imageMime(uri);
   if (Platform.OS === "web") {
     const a = document.createElement("a");
     a.href = uri;
-    a.download = `nexa-${Date.now()}.png`;
+    a.download = `nexa-${Date.now()}.${imageExt(mime)}`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     return;
   }
   if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(uri, { mimeType: "image/png", dialogTitle: "Salvar ou compartilhar imagem" });
+    await Sharing.shareAsync(uri, { mimeType: mime, dialogTitle: "Salvar ou compartilhar imagem" });
   }
 }

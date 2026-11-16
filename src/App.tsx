@@ -26,6 +26,7 @@ import {
   extractReminders,
   formatWhen,
   hidePartialTag,
+  ensureWebReminders,
   loadReminders,
   saveReminders,
   scheduleReminder,
@@ -100,6 +101,7 @@ function ChatScreen() {
       const [c, m, p, r] = await Promise.all([loadConversations(), loadMode(), loadProfile(), loadReminders()]);
       remindersRef.current = r;
       setReminders(r);
+      ensureWebReminders(r);
       convsRef.current = c;
       setConvs(c);
       setCurrentId(c[0]?.id ?? null);
@@ -146,6 +148,12 @@ function ChatScreen() {
     }
   }
 
+  function feedbackKey(sample: string) {
+    let h = 0;
+    for (let i = 0; i < sample.length; i++) h = (Math.imul(h, 31) + sample.charCodeAt(i)) >>> 0;
+    return h.toString(36);
+  }
+
   function giveFeedback(index: number, fb: Feedback | undefined, reason?: string) {
     const conv = convsRef.current.find((c) => c.id === currentId);
     if (!conv) return;
@@ -156,16 +164,24 @@ function ChatScreen() {
 
     const p = profileRef.current;
     const sample = msg.content.replace(/\s+/g, " ").slice(0, 300);
-    if (fb === "up") {
-      changeProfile({ ...p, likes: [...p.likes.filter((l) => l !== sample), sample].slice(-3) });
+    const key = feedbackKey(sample);
+    const withoutThis = p.dislikes.filter((d) => !d.endsWith("\u0001" + key));
+    if (!fb) {
+      changeProfile({ ...p, likes: p.likes.filter((l) => l !== sample), dislikes: withoutThis });
+    } else if (fb === "up") {
+      changeProfile({
+        ...p,
+        likes: [...p.likes.filter((l) => l !== sample), sample].slice(-3),
+        dislikes: withoutThis,
+      });
     } else if (fb === "down") {
       const note = reason?.trim()
-        ? reason.trim().slice(0, 300)
-        : `Não curtiu uma resposta parecida com: "${sample.slice(0, 120)}..."`;
+        ? reason.trim().slice(0, 240)
+        : `Não curtiu uma resposta parecida com: "${sample.slice(0, 100)}"`;
       changeProfile({
         ...p,
         likes: p.likes.filter((l) => l !== sample),
-        dislikes: [...p.dislikes, note].slice(-20),
+        dislikes: [...withoutThis, `${note}\u0001${key}`].slice(-20),
       });
     }
   }
@@ -179,6 +195,7 @@ function ChatScreen() {
     remindersRef.current = next;
     setReminders(next);
     saveReminders(next);
+    ensureWebReminders(next);
   }
 
   async function createReminders(found: { date: Date; text: string }[]): Promise<string[]> {
@@ -190,8 +207,9 @@ function ChatScreen() {
         continue;
       }
       try {
-        const notifId = await scheduleReminder(f.text, f.date);
-        added.push({ id: newId(), when: f.date.toISOString(), text: f.text, notifId });
+        const id = newId();
+        const notifId = await scheduleReminder(f.text, f.date, id);
+        added.push({ id, when: f.date.toISOString(), text: f.text, notifId });
         lines.push(`⏰ Lembrete marcado: **${f.text}** — ${formatWhen(f.date)}`);
       } catch (e: any) {
         lines.push(`⚠️ ${e?.message || "Não consegui marcar o lembrete."}`);
@@ -239,7 +257,12 @@ function ChatScreen() {
 
     const base: Conversation = current ?? { id: newId(), title: "", messages: [] };
     const userMsg: ChatMessage = { role: "user", content: text };
-    if (att) userMsg.attachment = { kind: att.kind, uri: att.uri };
+    if (att) {
+      userMsg.attachment = {
+        kind: att.kind,
+        uri: att.kind === "image" ? `data:${att.mime};base64,${att.data}` : att.uri,
+      };
+    }
     const conv: Conversation = {
       ...base,
       title: base.title || (wantsImage ? "🖼️ " : "") + text.slice(0, 40),
@@ -299,7 +322,7 @@ function ChatScreen() {
     } finally {
       abortRef.current = null;
       setStreaming(null);
-      if (full) {
+      if (full && convsRef.current.some((c) => c.id === conv.id)) {
         const reply: ChatMessage = { role: "assistant", content: full };
         if (image) reply.image = image;
         const done: Conversation = { ...conv, messages: [...conv.messages, reply] };
@@ -319,7 +342,7 @@ function ChatScreen() {
   }
 
   function deleteConv(id: string) {
-    const next = convs.filter((c) => c.id !== id);
+    const next = convsRef.current.filter((c) => c.id !== id);
     persist(next);
     if (currentId === id) setCurrentId(next[0]?.id ?? null);
   }
@@ -551,7 +574,11 @@ function ChatScreen() {
                 style={s.input}
                 multiline
                 onKeyPress={(e: any) => {
-                  if (Platform.OS === "web" && wide && e.nativeEvent.key === "Enter" && !e.nativeEvent.shiftKey) {
+                  const fine =
+                    Platform.OS === "web" &&
+                    typeof window !== "undefined" &&
+                    !!window.matchMedia?.("(pointer: fine)")?.matches;
+                  if (fine && e.nativeEvent.key === "Enter" && !e.nativeEvent.shiftKey) {
                     e.preventDefault?.();
                     send();
                   }

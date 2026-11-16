@@ -25,7 +25,8 @@ MODO VÍDEO LIGADO: você é uma especialista em criação e edição de vídeos
 - Pense em ritmo e retenção: cortes a cada 1–3 segundos, zoom em momentos fortes, legenda grande e legível, loop no final quando der.
 - Dê também: legenda do post, 3 a 5 hashtags, melhor duração e ideia de capa.
 - Se o usuário mandar uma imagem ou vídeo, analise de verdade o que aparece (enquadramento, luz, ritmo, texto, gancho) e diga o que manter e o que mudar, em ordem de prioridade.
-- Seja prática: o usuário quer sair da conversa sabendo exatamente o que gravar e editar.`;
+- Seja prática: o usuário quer sair da conversa sabendo exatamente o que gravar e editar.
+- O app tem um editor próprio (botão Editor): presets 9:16 (Futebol, Curiosidade, Gancho e Limpo), corte no ritmo da música, legenda grande estilo TikTok, punch-in, zoom lento, tremor e transições (flash, fade, wipe). Quando a pessoa for editar, indique esse editor e o preset certo, além do CapCut se ela pedir.`;
 
 const TONS = {
   equilibrada: "leve e simpática, bem-humorada quando cabe, mas sem enrolar",
@@ -99,6 +100,31 @@ function nativeUrl(model, stream) {
   }`;
 }
 
+async function readSse(body, onJson) {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  const handle = (line) => {
+    const l = line.trim();
+    if (!l.startsWith("data:")) return;
+    const data = l.slice(5).trim();
+    if (!data || data === "[DONE]") return;
+    try {
+      onJson(JSON.parse(data));
+    } catch {}
+  };
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+    for (const line of lines) handle(line);
+  }
+  buffer += decoder.decode();
+  if (buffer.trim()) handle(buffer);
+}
+
 async function callNative(prov, models, payload, stream, timeoutMs) {
   let lastErr = "";
   let lastStatus = 0;
@@ -125,7 +151,7 @@ async function callNative(prov, models, payload, stream, timeoutMs) {
   return { lastErr, lastStatus };
 }
 
-const ALLOWED_MIME = /^(image\/(jpeg|png|webp|heic|heif)|video\/(mp4|quicktime|webm|3gpp|x-m4v))$/;
+const ALLOWED_MIME = /^(image\/(jpeg|png|webp|heic|heif)|video\/(mp4|quicktime|webm|3gpp|x-m4v)|audio\/(wav|wave|x-wav|mpeg|mp3|mp4|webm|aac|ogg))$/;
 
 function cleanAttachment(a) {
   if (!a || typeof a !== "object") return null;
@@ -179,35 +205,20 @@ async function chatNative(prov, body, trimmed, modelKey, attachment, search, res
   }
   res.setHeader("Content-Type", "text/plain; charset=utf-8");
   res.setHeader("Cache-Control", "no-cache");
-  const reader = out.r.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
   let full = "";
   const sources = new Map();
   const write = (t) => {
     full += t;
     if (!isTest) res.write(t);
   };
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop();
-    for (const line of lines) {
-      const l = line.trim();
-      if (!l.startsWith("data:")) continue;
-      try {
-        const json = JSON.parse(l.slice(5).trim());
-        const cand = json.candidates?.[0];
-        const parts = cand?.content?.parts || [];
-        for (const part of parts) if (part.text && !part.thought) write(part.text);
-        for (const ch of cand?.groundingMetadata?.groundingChunks || []) {
-          if (ch.web?.uri && sources.size < 5) sources.set(ch.web.uri, ch.web.title || ch.web.uri);
-        }
-      } catch {}
+  await readSse(out.r.body, (json) => {
+    const cand = json.candidates?.[0];
+    const parts = cand?.content?.parts || [];
+    for (const part of parts) if (part.text && !part.thought) write(part.text);
+    for (const ch of cand?.groundingMetadata?.groundingChunks || []) {
+      if (ch.web?.uri && sources.size < 5) sources.set(ch.web.uri, ch.web.title || ch.web.uri);
     }
-  }
+  });
   if (sources.size) {
     write("\n\n**Fontes:**\n" + [...sources].map(([uri, title]) => `- [${title}](${uri})`).join("\n"));
   }
@@ -380,24 +391,34 @@ Request: ${prompt}`,
 }
 
 // Gerador grátis de imagens (pollinations.ai). O pedido vai em inglês para sair melhor.
+function pollinationsUrl(prompt, seed) {
+  const q = new URLSearchParams({ width: "768", height: "768", seed: String(seed), safe: "true" });
+  return "https://image.pollinations.ai/prompt/" + encodeURIComponent(prompt.slice(0, 700)) + "?" + q;
+}
+
+function retryWaitMs(res, body) {
+  const header = Number(res.headers.get("retry-after"));
+  if (Number.isFinite(header) && header > 0) return Math.min(48, header + 1) * 1000;
+  const m = String(body || "").match(/retry[- ]after[^\d]{0,20}(\d+)/i);
+  if (m) return Math.min(48, Number(m[1]) + 1) * 1000;
+  return 16000;
+}
+
 async function pollinations(prompt, res, googleErr, prov) {
   try {
     if (prov) prompt = await englishImagePrompt(prov, prompt);
     console.log("image prompt", prompt);
-    const seed = Math.floor(Math.random() * 1e9);
-    const url =
-      "https://image.pollinations.ai/prompt/" +
-      encodeURIComponent(prompt.slice(0, 900)) +
-      `?width=1024&height=1024&model=flux&nologo=true&safe=true&seed=${seed}`;
-    let r = await fetch(url, { signal: AbortSignal.timeout(50000) });
+    let seed = Math.floor(Math.random() * 1e9);
+    let r = await fetch(pollinationsUrl(prompt, seed), { signal: AbortSignal.timeout(55000) });
     let type = r.headers.get("content-type") || "";
     if (!type.startsWith("image/") && (r.status === 402 || r.status === 429 || r.status === 503)) {
-      // Limite do plano grátis: espera o tempo pedido (até 30 s) e tenta mais uma vez.
+      // O plano grátis pede cerca de 45 s entre imagens e avisa no cabeçalho Retry-After.
       const t = await r.text().catch(() => "");
-      const m = t.match(/Retry after (\d+)s/i);
-      const wait = Math.min(30, m ? Number(m[1]) + 1 : 12);
-      await new Promise((ok) => setTimeout(ok, wait * 1000));
-      r = await fetch(url, { signal: AbortSignal.timeout(50000) });
+      const wait = retryWaitMs(r, t);
+      console.log("image retry in", wait);
+      await new Promise((ok) => setTimeout(ok, wait));
+      seed = Math.floor(Math.random() * 1e9);
+      r = await fetch(pollinationsUrl(prompt, seed), { signal: AbortSignal.timeout(55000) });
       type = r.headers.get("content-type") || "";
     }
     if (!r.ok || !type.startsWith("image/")) {
@@ -553,6 +574,70 @@ Responda só com JSON no formato {"add": ["..."], "remove": ["texto exato de uma
   }
 }
 
+function asSegments(data) {
+  const arr = Array.isArray(data && data.segments) ? data.segments : Array.isArray(data) ? data : [];
+  return arr
+    .slice(0, 40)
+    .map((s) => ({
+      start: Math.max(0, Number(s && s.start) || 0),
+      end: Number(s && s.end) || 0,
+      text: str(s && s.text, 80),
+    }))
+    .filter((s) => s.text && s.end > s.start)
+    .slice(0, 24);
+}
+
+// Legenda automática: o editor manda só um wav curto, pela mesma chave grátis do Gemini.
+async function transcribe(prov, body, res) {
+  if (!prov.key) {
+    res.status(400).json({ error: "Transcrever a fala precisa da chave grátis do Google no servidor." });
+    return;
+  }
+  const attachment = cleanAttachment(body.attachment);
+  if (!attachment || !attachment.mime.startsWith("audio/")) {
+    res.status(400).json({ error: "Não recebi um áudio curto para transcrever." });
+    return;
+  }
+  const out = await callNative(
+    prov,
+    ["gemini-3.5-flash-lite", "gemini-3.5-flash"],
+    {
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: 'Transcreva a fala deste áudio em português do Brasil. Ignore música de fundo. Divida em frases curtas de 2 a 4 palavras, como legenda de TikTok. Responda somente JSON: {"segments":[{"start":0.0,"end":1.2,"text":"frase"}]}. Tempos em segundos. Não invente fala. Se não houver fala, {"segments":[]}.',
+            },
+            { inline_data: { mime_type: attachment.mime, data: attachment.data } },
+          ],
+        },
+      ],
+      generationConfig: { maxOutputTokens: 2048, temperature: 0.2 },
+    },
+    false,
+    50000
+  );
+  if (!out.r) {
+    res.status(502).json({ error: "Não consegui transcrever agora. Tente de novo.", detail: out.lastErr });
+    return;
+  }
+  try {
+    const j = await out.r.json();
+    let txt = (j.candidates?.[0]?.content?.parts || [])
+      .filter((p) => p.text && !p.thought)
+      .map((p) => p.text)
+      .join("\n")
+      .trim();
+    txt = txt.replace(/^```(json)?/i, "").replace(/```$/, "").trim();
+    const data = JSON.parse(txt || "{}");
+    res.status(200).json({ segments: asSegments(data) });
+  } catch (e) {
+    console.error("transcribe parse", e.message);
+    res.status(502).json({ error: "A transcrição veio num formato que não deu para ler." });
+  }
+}
+
 module.exports = async (req, res) => {
   cors(res);
   if (req.method === "OPTIONS") {
@@ -610,6 +695,10 @@ module.exports = async (req, res) => {
   }
   if (body.task === "imagem") {
     await createImage(prov, body, res);
+    return;
+  }
+  if (body.task === "transcrever") {
+    await transcribe(prov, body, res);
     return;
   }
 
@@ -681,31 +770,14 @@ module.exports = async (req, res) => {
   try {
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
     res.setHeader("Cache-Control", "no-cache");
-    const reader = out.r.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
     let full = "";
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop();
-      for (const line of lines) {
-        const l = line.trim();
-        if (!l.startsWith("data:")) continue;
-        const data = l.slice(5).trim();
-        if (data === "[DONE]") continue;
-        try {
-          const json = JSON.parse(data);
-          const piece = json.choices?.[0]?.delta?.content;
-          if (piece) {
-            full += piece;
-            if (!isTest) res.write(piece);
-          }
-        } catch {}
+    await readSse(out.r.body, (json) => {
+      const piece = json.choices?.[0]?.delta?.content;
+      if (piece) {
+        full += piece;
+        if (!isTest) res.write(piece);
       }
-    }
+    });
     if (results.length) {
       const fontes = "\n\n**Fontes:**\n" + results.slice(0, 4).map((r) => `- [${r.title}](${r.url})`).join("\n");
       full += fontes;

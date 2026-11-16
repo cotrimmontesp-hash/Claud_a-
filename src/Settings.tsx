@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
-import { DEFAULT_PROFILE, Profile, Tone } from "./storage";
+import { DEFAULT_PROFILE, Profile, Tone, dislikeLabel } from "./storage";
 import { Reminder, formatWhen } from "./reminders";
 import { colors } from "./theme";
 
@@ -211,7 +211,7 @@ export default function Settings({ profile, onChange, onClose, reminders, onRemo
                 <Text style={s.label}>Coisas que você não gostou (👎)</Text>
                 {profile.dislikes.map((m, i) => (
                   <View key={i + m} style={s.item}>
-                    <Text style={s.itemText}>{m}</Text>
+                    <Text style={s.itemText}>{dislikeLabel(m)}</Text>
                     <Pressable
                       hitSlop={10}
                       onPress={() => set({ dislikes: profile.dislikes.filter((_, j) => j !== i) })}
