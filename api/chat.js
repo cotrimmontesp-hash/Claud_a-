@@ -190,7 +190,7 @@ async function englishImagePrompt(prov, prompt) {
         {
           role: "user",
           content: `Rewrite this request as a detailed English prompt for an image generator.
-Rules: keep exactly the subject, objects, colors and style the user asked for; do not add people unless the user asked for people; family-friendly; describe composition, lighting and style; if the user wants text in the image, put it in quotes; max 70 words. Output only the prompt.
+Rules: start with the main subject; keep exactly the subject, objects, colors and style the user asked for; do not add people, faces or characters unless the user asked for them (write "no people" in that case); family-friendly; if the user wants text in the image, put it in quotes; max 35 words. Output only the prompt.
 
 Request: ${prompt}`,
         },
@@ -217,7 +217,7 @@ async function pollinations(prompt, res, googleErr, prov) {
     const url =
       "https://image.pollinations.ai/prompt/" +
       encodeURIComponent(prompt.slice(0, 900)) +
-      `?width=1024&height=1024&nologo=true&safe=true&seed=${seed}`;
+      `?width=1024&height=1024&model=flux&nologo=true&safe=true&seed=${seed}`;
     let r = await fetch(url, { signal: AbortSignal.timeout(50000) });
     let type = r.headers.get("content-type") || "";
     if (!type.startsWith("image/") && (r.status === 402 || r.status === 429 || r.status === 503)) {
@@ -391,9 +391,16 @@ module.exports = async (req, res) => {
   const isTest = req.method === "GET" && req.query && req.query.teste;
   if (isTest === "imagem") {
     const prov0 = getProvider(req);
-    await createImage(prov0, { prompt: "um gato astronauta fofo, estilo desenho, fundo roxo" }, {
+    await createImage(prov0, { prompt: str(req.query.p, 300) || "um gato astronauta fofo, estilo desenho, fundo roxo" }, {
       status: (c) => ({
-        json: (o) => res.status(c).json(o.data ? { ok: true, model: o.model, mime: o.mime, kb: Math.round(o.data.length / 1365) } : o),
+        json: (o) => {
+          if (o.data && req.query.ver) {
+            res.setHeader("Content-Type", o.mime);
+            res.status(c).end(Buffer.from(o.data, "base64"));
+            return;
+          }
+          res.status(c).json(o.data ? { ok: true, model: o.model, mime: o.mime, kb: Math.round(o.data.length / 1365) } : o);
+        },
       }),
     });
     return;
