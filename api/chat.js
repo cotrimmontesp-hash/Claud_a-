@@ -177,9 +177,42 @@ async function chatWithAttachment(prov, body, trimmed, modelKey, attachment, res
   res.end();
 }
 
-// Gerador grátis de imagens (pollinations.ai). O pedido vai em inglês para sair melhor.
-async function pollinations(prompt, res, googleErr) {
+// Transforma o pedido do usuário num prompt de imagem em inglês, fiel ao que ele pediu.
+async function englishImagePrompt(prov, prompt) {
+  if (!prov.token) return prompt;
+  const out = await callModel(
+    prov,
+    prov.gemini ? GEMINI.rapida : CLAUDE.rapida,
+    {
+      stream: false,
+      max_tokens: 300,
+      messages: [
+        {
+          role: "user",
+          content: `Rewrite this request as a detailed English prompt for an image generator.
+Rules: keep exactly the subject, objects, colors and style the user asked for; do not add people unless the user asked for people; family-friendly; describe composition, lighting and style; if the user wants text in the image, put it in quotes; max 70 words. Output only the prompt.
+
+Request: ${prompt}`,
+        },
+      ],
+    },
+    15000
+  );
+  if (!out.r) return prompt;
   try {
+    const j = await out.r.json();
+    const t = (j.choices?.[0]?.message?.content || "").trim().replace(/^"|"$/g, "");
+    return t ? t.slice(0, 900) : prompt;
+  } catch {
+    return prompt;
+  }
+}
+
+// Gerador grátis de imagens (pollinations.ai). O pedido vai em inglês para sair melhor.
+async function pollinations(prompt, res, googleErr, prov) {
+  try {
+    if (prov) prompt = await englishImagePrompt(prov, prompt);
+    console.log("image prompt", prompt);
     const seed = Math.floor(Math.random() * 1e9);
     const url =
       "https://image.pollinations.ai/prompt/" +
@@ -222,7 +255,7 @@ async function createImage(prov, body, res) {
   if (!prov.key || process.env.GOOGLE_IMAGES !== "1") {
     // No plano grátis do Google o limite de imagens é zero; para usar o Google,
     // crie a variável GOOGLE_IMAGES=1 na Vercel depois de ativar o faturamento.
-    await pollinations(prompt, res, "");
+    await pollinations(prompt, res, "", prov);
     return;
   }
   const parts = [{ text: `Crie uma imagem: ${prompt}` }];
@@ -239,7 +272,7 @@ async function createImage(prov, body, res) {
     55000
   );
   if (!out.r) {
-    await pollinations(prompt, res, out.lastErr);
+    await pollinations(prompt, res, out.lastErr, prov);
     return;
   }
   try {
