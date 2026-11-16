@@ -2,7 +2,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Message, Mode } from "./api";
 
 export type Feedback = "up" | "down";
-export type ChatMessage = Message & { feedback?: Feedback };
+export type ChatMessage = Message & {
+  feedback?: Feedback;
+  /** foto/vídeo que o usuário mandou (só para mostrar) */
+  attachment?: { kind: "image" | "video"; uri: string };
+  /** imagem criada pela IA */
+  image?: string;
+};
 export type Conversation = { id: string; title: string; messages: ChatMessage[] };
 
 export type Tone = "equilibrada" | "divertida" | "seria" | "girias";
@@ -14,6 +20,7 @@ export type Profile = {
   emojis: boolean;
   custom: string;
   memoryOn: boolean;
+  videoMode: boolean;
   memories: string[];
   dislikes: string[];
   likes: string[];
@@ -26,6 +33,7 @@ export const DEFAULT_PROFILE: Profile = {
   emojis: true,
   custom: "",
   memoryOn: true,
+  videoMode: false,
   memories: [],
   dislikes: [],
   likes: [],
@@ -45,9 +53,21 @@ export async function loadConversations(): Promise<Conversation[]> {
   }
 }
 
+// Endereços temporários do navegador (blob:/data:) não sobrevivem; não vale a pena guardar.
+const tempUri = (u?: string) => !!u && (u.startsWith("blob:") || u.startsWith("data:"));
+
 export async function saveConversations(convs: Conversation[]): Promise<void> {
   try {
-    await AsyncStorage.setItem(KEY, JSON.stringify(convs.slice(0, 60)));
+    const clean = convs.slice(0, 60).map((c) => ({
+      ...c,
+      messages: c.messages.map((m) => {
+        const out: ChatMessage = { ...m };
+        if (out.attachment && tempUri(out.attachment.uri)) out.attachment = { ...out.attachment, uri: "" };
+        if (tempUri(out.image)) delete out.image;
+        return out;
+      }),
+    }));
+    await AsyncStorage.setItem(KEY, JSON.stringify(clean));
   } catch {}
 }
 

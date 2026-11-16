@@ -35,6 +35,16 @@
     },
     "extra": {
       "apiUrl": "https://claude-ia-steel.vercel.app"
-    }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "A Nexa precisa acessar suas fotos e vídeos para analisar o que você enviar.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
+    ]
   }
 }

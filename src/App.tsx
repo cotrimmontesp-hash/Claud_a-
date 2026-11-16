@@ -17,7 +17,8 @@ import { StatusBar } from "expo-status-bar";
 import * as Clipboard from "expo-clipboard";
 import * as Speech from "expo-speech";
 
-import { askNexa, Mode, updateMemory } from "./api";
+import { askNexa, createImage, Mode, updateMemory } from "./api";
+import { Attachment, pickMedia, shareImage, storeImage } from "./media";
 import {
   ChatMessage,
   Conversation,
@@ -71,6 +72,9 @@ function ChatScreen() {
   const [showSettings, setShowSettings] = useState(false);
   const [learned, setLearned] = useState<string | null>(null);
   const profileRef = useRef<Profile>(DEFAULT_PROFILE);
+  const [attachment, setAttachment] = useState<Attachment | null>(null);
+  const [imageMode, setImageMode] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -149,23 +153,39 @@ function ChatScreen() {
     }
   }
 
+  async function attach() {
+    try {
+      const a = await pickMedia();
+      if (a) setAttachment(a);
+    } catch (e: any) {
+      setNotice(e?.message || "Não consegui abrir esse arquivo.");
+      setTimeout(() => setNotice(null), 6000);
+    }
+  }
+
   async function send(textArg?: string) {
     if (busy) {
       abortRef.current?.abort();
       return;
     }
-    const text = (textArg ?? input).trim();
-    if (!text) return;
+    const att = attachment;
+    let text = (textArg ?? input).trim();
+    if (!text && !att) return;
+    if (!text && att) text = att.kind === "video" ? "Analise esse vídeo e me diga como melhorar." : "O que você acha dessa imagem?";
+    const wantsImage = imageMode;
     setInput("");
+    setAttachment(null);
     setError(null);
 
     const base: Conversation = current ?? { id: newId(), title: "", messages: [] };
+    const userMsg: ChatMessage = { role: "user", content: text };
+    if (att) userMsg.attachment = { kind: att.kind, uri: att.uri };
     const conv: Conversation = {
       ...base,
-      title: base.title || text.slice(0, 40),
-      messages: [...base.messages, { role: "user", content: text }],
+      title: base.title || (wantsImage ? "🖼️ " : "") + text.slice(0, 40),
+      messages: [...base.messages, userMsg],
     };
-    let list = [conv, ...convs.filter((c) => c.id !== conv.id)];
+    let list = [conv, ...convsRef.current.filter((c) => c.id !== conv.id)];
     persist(list);
     setCurrentId(conv.id);
     setStreaming("");
@@ -174,33 +194,52 @@ function ChatScreen() {
     const controller = new AbortController();
     abortRef.current = controller;
     let full = "";
+    let image: string | undefined;
     try {
-      full = await askNexa(
-        conv.messages.map(({ role, content }) => ({ role, content })),
-        mode,
-        profileRef.current,
-        (t) => {
-          full = t;
-          setStreaming(t);
-          scrollDown();
-        },
-        controller.signal
-      );
+      if (wantsImage) {
+        setStreaming("🎨 Criando a imagem… (pode levar até 1 minuto)");
+        const img = await createImage(
+          text,
+          att && att.kind === "image" ? { mime: att.mime, data: att.data } : undefined,
+          controller.signal
+        );
+        image = await storeImage(img.data, img.mime);
+        full = `🖼️ Imagem criada: ${text}`;
+      } else {
+        full = await askNexa(
+          conv.messages.map(({ role, content, attachment: a }, idx, arr) => ({
+            role,
+            content:
+              a && idx < arr.length - 1
+                ? `${content}\n[Nesta mensagem o usuário tinha mandado ${a.kind === "video" ? "um vídeo" : "uma foto"}]`
+                : content,
+          })),
+          mode,
+          profileRef.current,
+          (t) => {
+            full = t;
+            setStreaming(t);
+            scrollDown();
+          },
+          controller.signal,
+          att ? { mime: att.mime, data: att.data } : undefined
+        );
+      }
     } catch (e: any) {
       if (e?.name !== "AbortError" && !controller.signal.aborted) {
         setError(e?.message || "Não consegui responder agora.");
       }
+      if (wantsImage) full = "";
     } finally {
       abortRef.current = null;
       setStreaming(null);
       if (full) {
-        const done: Conversation = {
-          ...conv,
-          messages: [...conv.messages, { role: "assistant", content: full }],
-        };
-        list = [done, ...list.filter((c) => c.id !== done.id)];
+        const reply: ChatMessage = { role: "assistant", content: full };
+        if (image) reply.image = image;
+        const done: Conversation = { ...conv, messages: [...conv.messages, reply] };
+        list = [done, ...convsRef.current.filter((c) => c.id !== done.id)];
         persist(list);
-        learnFrom(text, full);
+        if (!wantsImage) learnFrom(text, full);
       }
       scrollDown();
     }
@@ -358,11 +397,12 @@ function ChatScreen() {
               <>
                 {messages.map((m, i) =>
                   m.role === "user" ? (
-                    <UserBubble key={i} text={m.content} />
+                    <UserBubble key={i} text={m.content} attachment={m.attachment} />
                   ) : (
                     <BotBubble
                       key={i}
                       text={m.content}
+                      image={m.image}
                       feedback={m.feedback}
                       onFeedback={(fb, reason) => giveFeedback(i, fb, reason)}
                     />
@@ -386,12 +426,55 @@ function ChatScreen() {
             </View>
           )}
 
+          {notice && (
+            <View style={s.toast}>
+              <Text style={s.toastText}>{notice}</Text>
+            </View>
+          )}
+
           <View style={s.footer}>
+            <View style={s.chipsRow}>
+              <Pressable
+                style={[s.modeChip, profile.videoMode && s.modeChipOn]}
+                onPress={() => changeProfile({ ...profile, videoMode: !profile.videoMode })}
+              >
+                <Text style={[s.modeChipText, profile.videoMode && { color: colors.text }]}>🎬 Modo Vídeo</Text>
+              </Pressable>
+              <Pressable style={[s.modeChip, imageMode && s.modeChipOn]} onPress={() => setImageMode(!imageMode)}>
+                <Text style={[s.modeChipText, imageMode && { color: colors.text }]}>🖼️ Criar imagem</Text>
+              </Pressable>
+            </View>
+            {attachment && (
+              <View style={s.attachPreview}>
+                {attachment.kind === "image" ? (
+                  <Image source={{ uri: attachment.uri }} style={s.attachThumb} />
+                ) : (
+                  <View style={[s.attachThumb, s.videoThumb]}>
+                    <Text style={{ fontSize: 22 }}>🎞️</Text>
+                  </View>
+                )}
+                <Text style={s.attachText} numberOfLines={1}>
+                  {attachment.kind === "video" ? "Vídeo pronto para enviar" : imageMode ? "Foto de referência" : "Foto pronta para enviar"}
+                </Text>
+                <Pressable hitSlop={10} onPress={() => setAttachment(null)}>
+                  <Text style={s.convDel}>✕</Text>
+                </Pressable>
+              </View>
+            )}
             <View style={s.box}>
+              <Pressable style={s.mic} onPress={attach} disabled={busy}>
+                <Text style={{ fontSize: 18 }}>📎</Text>
+              </Pressable>
               <TextInput
                 value={input}
                 onChangeText={setInput}
-                placeholder="Pergunte qualquer coisa…"
+                placeholder={
+                  imageMode
+                    ? "Descreva a imagem que você quer…"
+                    : profile.videoMode
+                    ? "Peça um roteiro, edição, ideia de vídeo…"
+                    : "Pergunte qualquer coisa…"
+                }
                 placeholderTextColor={colors.muted}
                 style={s.input}
                 multiline
@@ -431,10 +514,16 @@ function ChatScreen() {
   );
 }
 
-function UserBubble({ text }: { text: string }) {
+function UserBubble({ text, attachment }: { text: string; attachment?: { kind: "image" | "video"; uri: string } }) {
   return (
     <View style={s.userRow}>
       <View style={s.userBubble}>
+        {attachment &&
+          (attachment.kind === "image" && attachment.uri ? (
+            <Image source={{ uri: attachment.uri }} style={s.sentImage} resizeMode="cover" />
+          ) : (
+            <Text style={s.sentFile}>{attachment.kind === "video" ? "🎞️ Vídeo enviado" : "📷 Foto enviada"}</Text>
+          ))}
         <Text style={s.userText} selectable>{text}</Text>
       </View>
     </View>
@@ -443,11 +532,13 @@ function UserBubble({ text }: { text: string }) {
 
 function BotBubble({
   text,
+  image,
   loading,
   feedback,
   onFeedback,
 }: {
   text: string;
+  image?: string;
   loading?: boolean;
   feedback?: Feedback;
   onFeedback?: (fb: Feedback | undefined, reason?: string) => void;
@@ -459,6 +550,14 @@ function BotBubble({
     <View style={s.botRow}>
       <Image source={icon} style={s.avatar} />
       <View style={{ flex: 1, paddingTop: 4 }}>
+        {image && (
+          <View style={{ marginBottom: 8 }}>
+            <Image source={{ uri: image }} style={s.genImage} resizeMode="cover" />
+            <Pressable style={[s.tool, { alignSelf: "flex-start", marginTop: 6 }]} onPress={() => shareImage(image)}>
+              <Text style={s.toolText}>💾 Salvar / compartilhar</Text>
+            </Pressable>
+          </View>
+        )}
         {text ? <Markdown text={text} /> : <ActivityIndicator color={colors.muted} style={{ alignSelf: "flex-start" }} />}
         {!loading && !!text && (
           <View style={s.tools}>
@@ -590,6 +689,35 @@ const s = StyleSheet.create({
   tools: { flexDirection: "row", gap: 6, marginTop: 8 },
   tool: { backgroundColor: colors.panel, borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8 },
   toolText: { color: colors.muted, fontSize: 12 },
+  chipsRow: { flexDirection: "row", gap: 8, maxWidth: 760, width: "100%", alignSelf: "center", marginBottom: 8 },
+  modeChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.panel,
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  modeChipOn: { borderColor: colors.accent, backgroundColor: colors.panel2 },
+  modeChipText: { color: colors.muted, fontSize: 13, fontWeight: "600" },
+  attachPreview: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    maxWidth: 760,
+    width: "100%",
+    alignSelf: "center",
+    backgroundColor: colors.panel,
+    borderRadius: 14,
+    padding: 8,
+    marginBottom: 8,
+  },
+  attachThumb: { width: 48, height: 48, borderRadius: 10 },
+  videoThumb: { backgroundColor: colors.panel2, alignItems: "center", justifyContent: "center" },
+  attachText: { flex: 1, color: colors.text, fontSize: 14 },
+  sentImage: { width: 220, height: 220, borderRadius: 12, marginBottom: 8 },
+  sentFile: { color: colors.text, fontSize: 14, marginBottom: 6 },
+  genImage: { width: "100%", maxWidth: 420, aspectRatio: 1, borderRadius: 14, backgroundColor: colors.panel },
   toolOn: { backgroundColor: colors.panel2, borderWidth: 1, borderColor: colors.accent2 },
   fbBox: { marginTop: 8, backgroundColor: colors.panel, borderRadius: 12, padding: 12, gap: 8 },
   fbTitle: { color: colors.text, fontSize: 13, fontWeight: "600" },

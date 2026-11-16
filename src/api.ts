@@ -23,6 +23,7 @@ function profileForServer(p: Profile) {
     memories: p.memoryOn ? p.memories : [],
     dislikes: p.dislikes,
     likes: p.likes,
+    videoMode: p.videoMode,
   };
 }
 
@@ -35,12 +36,13 @@ export async function askNexa(
   mode: Mode,
   profile: Profile,
   onChunk: (full: string) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  attachment?: { mime: string; data: string }
 ): Promise<string> {
   const res = await doFetch(`${API_URL}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, model: mode, profile: profileForServer(profile) }),
+    body: JSON.stringify({ messages, model: mode, profile: profileForServer(profile), attachment }),
     signal,
   });
 
@@ -91,4 +93,24 @@ export async function updateMemory(
   } catch {
     return { add: [], remove: [] };
   }
+}
+
+/** Pede para a IA criar uma imagem. Pode mandar uma foto de referência. */
+export async function createImage(
+  prompt: string,
+  attachment?: { mime: string; data: string },
+  signal?: AbortSignal
+): Promise<{ mime: string; data: string }> {
+  const res = await doFetch(`${API_URL}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ task: "imagem", prompt, attachment }),
+    signal,
+  });
+  let data: any = null;
+  try {
+    data = await res.json();
+  } catch {}
+  if (!res.ok || !data?.data) throw new Error(data?.error || `Erro ${res.status}`);
+  return { mime: data.mime || "image/png", data: data.data };
 }

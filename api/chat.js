@@ -185,8 +185,17 @@ async function pollinations(prompt, res, googleErr) {
       "https://image.pollinations.ai/prompt/" +
       encodeURIComponent(prompt.slice(0, 900)) +
       `?width=1024&height=1024&nologo=true&safe=true&seed=${seed}`;
-    const r = await fetch(url, { signal: AbortSignal.timeout(55000) });
-    const type = r.headers.get("content-type") || "";
+    let r = await fetch(url, { signal: AbortSignal.timeout(50000) });
+    let type = r.headers.get("content-type") || "";
+    if (!type.startsWith("image/") && (r.status === 402 || r.status === 429 || r.status === 503)) {
+      // Limite do plano grátis: espera o tempo pedido (até 30 s) e tenta mais uma vez.
+      const t = await r.text().catch(() => "");
+      const m = t.match(/Retry after (\d+)s/i);
+      const wait = Math.min(30, m ? Number(m[1]) + 1 : 12);
+      await new Promise((ok) => setTimeout(ok, wait * 1000));
+      r = await fetch(url, { signal: AbortSignal.timeout(50000) });
+      type = r.headers.get("content-type") || "";
+    }
     if (!r.ok || !type.startsWith("image/")) {
       const t = (await r.text().catch(() => "")).slice(0, 300);
       console.error("pollinations", r.status, type, t);
@@ -210,7 +219,9 @@ async function createImage(prov, body, res) {
   }
   // 1) Tenta o Google (só funciona se a conta tiver cota de imagem).
   // 2) Se não der, usa o Pollinations (gerador de imagens grátis, sem chave).
-  if (!prov.key) {
+  if (!prov.key || process.env.GOOGLE_IMAGES !== "1") {
+    // No plano grátis do Google o limite de imagens é zero; para usar o Google,
+    // crie a variável GOOGLE_IMAGES=1 na Vercel depois de ativar o faturamento.
     await pollinations(prompt, res, "");
     return;
   }
