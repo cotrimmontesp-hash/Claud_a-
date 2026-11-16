@@ -13,7 +13,6 @@ const copy = (from, to) => {
 
 const umd = nm("@ffmpeg", "ffmpeg", "dist", "umd");
 for (const f of fs.readdirSync(umd)) if (f.endsWith(".js")) copy(path.join(umd, f), f);
-copy(nm("@ffmpeg", "util", "dist", "umd", "index.js"), "util.js");
 copy(nm("@ffmpeg", "core", "dist", "umd", "ffmpeg-core.js"), "ffmpeg-core.js");
 copy(nm("@ffmpeg", "core", "dist", "umd", "ffmpeg-core.wasm"), "ffmpeg-core.wasm");
 copy(nm("dejavu-fonts-ttf", "ttf", "DejaVuSans-Bold.ttf"), "font.ttf");

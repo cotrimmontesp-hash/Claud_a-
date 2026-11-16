@@ -661,8 +661,8 @@ module.exports = async (req, res) => {
           content:
             buildSystemPrompt(body.profile) +
             (results.length
-              ? `\n\nRESULTADOS DE UMA PESQUISA NA INTERNET FEITA AGORA para a pergunta do usuário (use para responder com informação atual; se não for suficiente, diga que não encontrou com certeza; não invente; cite as fontes no texto quando usar, pelo nome do site):\n` +
-                results.map((r, i) => `[${i + 1}] ${r.title}\n${r.url}\n${r.snippet}`).join("\n\n")
+              ? `\n\nRESULTADOS DE UMA PESQUISA NA INTERNET FEITA AGORA para a pergunta do usuário (use para responder com informação atual; prefira o resultado mais recente e diga a data quando houver; se houver "Cotação", use esse valor; se não for suficiente, diga que não encontrou com certeza; não invente; cite a fonte pelo nome do site, nunca com números entre colchetes; a lista de links é colocada automaticamente no fim, não escreva links):\n` +
+                results.map((r) => `• ${r.title}\n${r.snippet}`).join("\n\n")
               : search
               ? "\n\nO usuário pediu uma informação atual, mas a pesquisa na internet não trouxe resultados agora. Avise que não conseguiu pesquisar e que a sua informação pode estar desatualizada."
               : ""),

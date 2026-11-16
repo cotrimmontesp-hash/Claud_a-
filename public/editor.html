@@ -108,7 +108,7 @@ progress{width:100%;height:10px;border-radius:6px;overflow:hidden;accent-color:v
       </div>
       <div>
         <label>Tamanho</label>
-        <select id="textSize"><option value="0.05">Pequeno</option><option value="0.07" selected>Médio</option><option value="0.095">Grande</option></select>
+        <select id="textSize"><option value="0.035">Pequeno</option><option value="0.05" selected>Médio</option><option value="0.07">Grande</option></select>
       </div>
     </div>
     <div class="row">
@@ -169,7 +169,6 @@ progress{width:100%;height:10px;border-radius:6px;overflow:hidden;accent-color:v
 </main>
 
 <script src="/ffmpeg/ffmpeg.js"></script>
-<script src="/ffmpeg/util.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
 const clips = []; // {file, url, dur, start, end}
@@ -318,7 +317,7 @@ async function exec(args) {
 async function processClip(i, c, fmtV, fitV, speed, audioV) {
   const inName = `in${i}`;
   const outName = `part${i}.mp4`;
-  await ffmpeg.writeFile(inName, await FFmpegUtil.fetchFile(c.file));
+  await ffmpeg.writeFile(inName, new Uint8Array(await c.file.arrayBuffer()));
   const start = Math.max(0, c.start || 0);
   const end = c.end && c.end > start ? c.end : c.dur || 0;
   const cut = [];
@@ -400,7 +399,9 @@ async function generate() {
       const vfs = [];
       if (text) {
         const d = dims(fmtV);
-        const size = Math.round((d ? d[1] : 720) * parseFloat($("#textSize").value));
+        const H = d ? d[1] : 720, W = d ? d[0] : 1280;
+        // não deixa o texto passar da largura do vídeo
+        const size = Math.round(Math.min(H * parseFloat($("#textSize").value), (W * 0.9) / Math.max(1, text.length * 0.62)));
         const pos = $("#textPos").value;
         const y = pos === "top" ? "h*0.12" : pos === "mid" ? "(h-text_h)/2" : "h*0.80-text_h";
         const from = parseFloat($("#textFrom").value), to = parseFloat($("#textTo").value);
@@ -415,7 +416,7 @@ async function generate() {
       let af = [];
       if (audioV === "mute") audioMap = ["-an"];
       if (audioV === "music" || audioV === "mix") {
-        await ffmpeg.writeFile("music", await FFmpegUtil.fetchFile(musicFile));
+        await ffmpeg.writeFile("music", new Uint8Array(await musicFile.arrayBuffer()));
         const ms = Math.max(0, parseFloat($("#musicStart").value) || 0);
         args.push("-ss", String(ms), "-i", "music");
         if (audioV === "music") {
