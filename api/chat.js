@@ -14,6 +14,19 @@ const CLAUDE = {
   esperta: ["anthropic/claude-opus-5.5"],
 };
 
+// Modelos de imagem do Google (testados em ordem)
+const IMAGE_MODELS = ["gemini-3.1-flash-image", "gemini-2.5-flash-image", "gemini-3.1-flash-image-preview"];
+
+const VIDEO_PROMPT = `
+
+MODO VÍDEO LIGADO: você é uma especialista em criação e edição de vídeos curtos (TikTok, Reels, Shorts) e em CapCut.
+- Roteiros: sempre com gancho forte nos 2 primeiros segundos, cenas numeradas com tempo (ex.: 0–2s, 2–6s), fala/narração, texto na tela, o que aparece na imagem e música/efeito sonoro sugerido.
+- Edição no CapCut: dê passo a passo com o nome real dos botões e menus do CapCut em português (ex.: Dividir, Velocidade > Curva, Animação, Efeitos, Legendas automáticas, Keyframe, Remover fundo, Ajustar), e valores sugeridos quando fizer sentido.
+- Pense em ritmo e retenção: cortes a cada 1–3 segundos, zoom em momentos fortes, legenda grande e legível, loop no final quando der.
+- Dê também: legenda do post, 3 a 5 hashtags, melhor duração e ideia de capa.
+- Se o usuário mandar uma imagem ou vídeo, analise de verdade o que aparece (enquadramento, luz, ritmo, texto, gancho) e diga o que manter e o que mudar, em ordem de prioridade.
+- Seja prática: o usuário quer sair da conversa sabendo exatamente o que gravar e editar.`;
+
 const TONS = {
   equilibrada: "leve e simpática, bem-humorada quando cabe, mas sem enrolar",
   divertida: "bem divertida e animada, com piadas e brincadeiras leves, mas sempre útil",
@@ -52,6 +65,7 @@ function buildSystemPrompt(p = {}) {
     s += `\n\nO usuário NÃO gostou destas coisas em respostas antigas. Evite repetir:\n${dislikes.map((m) => "- " + m).join("\n")}`;
   if (likes.length)
     s += `\n\nExemplos de respostas que o usuário curtiu (siga um estilo parecido):\n${likes.map((m) => "- " + m).join("\n")}`;
+  if (p.videoMode) s += VIDEO_PROMPT;
   return s;
 }
 
@@ -68,7 +82,150 @@ function getProvider(req) {
   const endpoint = gemini
     ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
     : "https://ai-gateway.vercel.sh/v1/chat/completions";
-  return { gemini: !!gemini, token, endpoint };
+  return { gemini: !!gemini, key: gemini, token, endpoint };
+}
+
+// API própria do Gemini (aceita imagem, vídeo e gerar imagens)
+function nativeUrl(model, stream) {
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:${
+    stream ? "streamGenerateContent?alt=sse" : "generateContent"
+  }`;
+}
+
+async function callNative(prov, models, payload, stream, timeoutMs) {
+  let lastErr = "";
+  let lastStatus = 0;
+  for (const model of models) {
+    try {
+      const r = await fetch(nativeUrl(model, stream), {
+        method: "POST",
+        headers: { "x-goog-api-key": prov.key, "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(timeoutMs),
+        body: JSON.stringify(payload),
+      });
+      if (r.ok && r.body) {
+        console.log("native using", model);
+        return { r, model };
+      }
+      lastStatus = r.status;
+      lastErr = (await r.text().catch(() => "")).slice(0, 500);
+      console.error("native error", model, r.status, lastErr);
+    } catch (e) {
+      lastErr = e.name + ": " + e.message;
+      console.error("native fail", model, lastErr);
+    }
+  }
+  return { lastErr, lastStatus };
+}
+
+const ALLOWED_MIME = /^(image\/(jpeg|png|webp|heic|heif)|video\/(mp4|quicktime|webm|3gpp|x-m4v))$/;
+
+function cleanAttachment(a) {
+  if (!a || typeof a !== "object") return null;
+  const mime = str(a.mime, 40).toLowerCase();
+  const data = typeof a.data === "string" ? a.data.replace(/^data:[^,]+,/, "") : "";
+  if (!ALLOWED_MIME.test(mime) || !data || data.length > 4_300_000) return null;
+  return { mime, data };
+}
+
+// Conversa com anexo (foto ou vídeo): usa a API própria do Gemini, em streaming.
+async function chatWithAttachment(prov, body, trimmed, modelKey, attachment, res) {
+  const contents = trimmed.map((m, i) => {
+    const parts = [{ text: m.content || "." }];
+    if (i === trimmed.length - 1 && m.role === "user") {
+      parts.push({ inline_data: { mime_type: attachment.mime, data: attachment.data } });
+    }
+    return { role: m.role === "assistant" ? "model" : "user", parts };
+  });
+  const models = modelKey === "esperta" ? ["gemini-3.5-flash", "gemini-3.5-flash-lite"] : ["gemini-3.5-flash-lite", "gemini-3.5-flash"];
+  const out = await callNative(
+    prov,
+    models,
+    {
+      systemInstruction: { parts: [{ text: buildSystemPrompt(body.profile) }] },
+      contents,
+      generationConfig: { maxOutputTokens: 8192 },
+    },
+    true,
+    40000
+  );
+  if (!out.r) {
+    res.status(502).json({ error: errorMessage(out.lastErr, out.lastStatus), detail: out.lastErr });
+    return;
+  }
+  res.setHeader("Content-Type", "text/plain; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache");
+  const reader = out.r.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop();
+    for (const line of lines) {
+      const l = line.trim();
+      if (!l.startsWith("data:")) continue;
+      try {
+        const json = JSON.parse(l.slice(5).trim());
+        const parts = json.candidates?.[0]?.content?.parts || [];
+        for (const part of parts) if (part.text && !part.thought) res.write(part.text);
+      } catch {}
+    }
+  }
+  res.end();
+}
+
+// Cria uma imagem a partir de um pedido em texto.
+async function createImage(prov, body, res) {
+  const prompt = str(body.prompt, 2000);
+  if (!prompt) {
+    res.status(400).json({ error: "Descreva a imagem que você quer." });
+    return;
+  }
+  if (!prov.key) {
+    res.status(400).json({ error: "Criar imagens precisa da chave do Google." });
+    return;
+  }
+  const parts = [{ text: `Crie uma imagem: ${prompt}` }];
+  const ref = cleanAttachment(body.attachment);
+  if (ref && ref.mime.startsWith("image/")) parts.push({ inline_data: { mime_type: ref.mime, data: ref.data } });
+  const out = await callNative(
+    prov,
+    IMAGE_MODELS,
+    {
+      contents: [{ role: "user", parts }],
+      generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
+    },
+    false,
+    55000
+  );
+  if (!out.r) {
+    const semCota = out.lastStatus === 429 || /quota|free tier|billing/i.test(out.lastErr);
+    res.status(502).json({
+      error: semCota
+        ? "O plano grátis do Google não liberou criar imagens agora. Tente mais tarde."
+        : "Não consegui criar a imagem, tente de novo.",
+      detail: out.lastErr,
+    });
+    return;
+  }
+  try {
+    const j = await out.r.json();
+    const outParts = j.candidates?.[0]?.content?.parts || [];
+    const img = outParts.find((x) => x.inlineData || x.inline_data);
+    const text = outParts.filter((x) => x.text && !x.thought).map((x) => x.text).join("\n").trim();
+    if (!img) {
+      res.status(502).json({ error: text || "A IA não devolveu imagem. Tente descrever de outro jeito." });
+      return;
+    }
+    const d = img.inlineData || img.inline_data;
+    res.status(200).json({ mime: d.mimeType || d.mime_type || "image/png", data: d.data, text, model: out.model });
+  } catch (e) {
+    console.error("image parse", e.message);
+    res.status(502).json({ error: "Não consegui ler a imagem criada." });
+  }
 }
 
 async function callModel(prov, models, payload, timeoutMs) {
@@ -168,6 +325,15 @@ module.exports = async (req, res) => {
     return;
   }
   const isTest = req.method === "GET" && req.query && req.query.teste;
+  if (isTest === "imagem") {
+    const prov0 = getProvider(req);
+    await createImage(prov0, { prompt: "um gato astronauta fofo, estilo desenho, fundo roxo" }, {
+      status: (c) => ({
+        json: (o) => res.status(c).json(o.data ? { ok: true, model: o.model, mime: o.mime, kb: Math.round(o.data.length / 1365) } : o),
+      }),
+    });
+    return;
+  }
   if (isTest) {
     req.body = {
       messages: [{ role: "user", content: "Diga só: estou funcionando!" }],
@@ -198,6 +364,10 @@ module.exports = async (req, res) => {
     await memorize(prov, body, res);
     return;
   }
+  if (body.task === "imagem") {
+    await createImage(prov, body, res);
+    return;
+  }
 
   const messages = Array.isArray(body.messages) ? body.messages : [];
   const modelKey = body.model === "esperta" ? "esperta" : "rapida";
@@ -208,6 +378,22 @@ module.exports = async (req, res) => {
 
   if (!trimmed.length) {
     res.status(400).json({ error: "Mensagem vazia." });
+    return;
+  }
+
+  const attachment = cleanAttachment(body.attachment);
+  if (attachment) {
+    if (!prov.key) {
+      res.status(400).json({ error: "Analisar fotos e vídeos precisa da chave do Google." });
+      return;
+    }
+    try {
+      await chatWithAttachment(prov, body, trimmed, modelKey, attachment, res);
+    } catch (e) {
+      console.error("attach fail", e.name, e.message);
+      if (!res.headersSent) res.status(500).json({ error: "Falha ao analisar o arquivo." });
+      else res.end();
+    }
     return;
   }
 
