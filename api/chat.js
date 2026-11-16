@@ -144,7 +144,13 @@ async function chatNative(prov, body, trimmed, modelKey, attachment, search, res
     }
     return { role: m.role === "assistant" ? "model" : "user", parts };
   });
-  const models = modelKey === "esperta" ? ["gemini-3.5-flash", "gemini-3.5-flash-lite"] : ["gemini-3.5-flash-lite", "gemini-3.5-flash"];
+  const models = isTest && body.testModels
+    ? body.testModels
+    : search
+    ? SEARCH_MODELS
+    : modelKey === "esperta"
+    ? ["gemini-3.5-flash", "gemini-3.5-flash-lite"]
+    : ["gemini-3.5-flash-lite", "gemini-3.5-flash"];
   const out = await callNative(
     prov,
     models,
@@ -212,6 +218,9 @@ async function chatNative(prov, body, trimmed, modelKey, attachment, search, res
   }
   res.end();
 }
+
+// Modelos usados na pesquisa (o plano grátis só libera a pesquisa em alguns).
+const SEARCH_MODELS = ["gemini-flash-latest", "gemini-3-flash-preview", "gemini-3.1-flash-lite", "gemini-flash-lite-latest"];
 
 // Perguntas que pedem informação de hoje: liga a pesquisa sozinha.
 const PRECISA_PESQUISA =
@@ -450,6 +459,7 @@ module.exports = async (req, res) => {
       messages: [{ role: "user", content: str(req.query.q, 300) || "Diga só: estou funcionando!" }],
       model: req.query.teste === "esperta" ? "esperta" : "rapida",
       search: req.query.teste === "busca" ? true : undefined,
+      testModels: req.query.m ? String(req.query.m).split(",").slice(0, 6) : undefined,
     };
   } else if (req.method !== "POST") {
     res.status(405).json({ error: "Use POST" });
