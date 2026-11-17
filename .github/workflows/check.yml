@@ -1,0 +1,32 @@
+name: Conferir melhoria
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  conferir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalar dependências
+        run: npm install --legacy-peer-deps
+
+      - name: Conferir o código (TypeScript)
+        run: npx tsc --noEmit
+
+      - name: Testes do editor
+        run: node scripts/editor-logic.test.js
+
+      - name: Servidor carrega
+        run: node -e "require('./api/chat.js')"
+
+      - name: Montar o site
+        run: npx expo export -p web && node scripts/copy-assets.js
