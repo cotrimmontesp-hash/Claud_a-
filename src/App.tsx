@@ -46,6 +46,7 @@ import {
   saveProfile,
 } from "./storage";
 import Markdown from "./Markdown";
+import { expandCommand, matchCommands } from "./commands";
 import Settings from "./Settings";
 import { colors } from "./theme";
 
@@ -251,6 +252,8 @@ function ChatScreen() {
     if (!text && !att) return;
     if (!text && att) text = att.kind === "video" ? "Analise esse vídeo e me diga como melhorar." : "O que você acha dessa imagem?";
     const wantsImage = imageMode;
+    const typed = text;
+    if (!wantsImage) text = expandCommand(text);
     setInput("");
     setAttachment(null);
     setError(null);
@@ -265,7 +268,7 @@ function ChatScreen() {
     }
     const conv: Conversation = {
       ...base,
-      title: base.title || (wantsImage ? "🖼️ " : "") + text.slice(0, 40),
+      title: base.title || (wantsImage ? "🖼️ " : "") + typed.slice(0, 40),
       messages: [...base.messages, userMsg],
     };
     let list = [conv, ...convsRef.current.filter((c) => c.id !== conv.id)];
@@ -386,6 +389,7 @@ function ChatScreen() {
   const messages: ChatMessage[] = current?.messages ?? [];
   const aiName = profile.assistantName.trim() || "Nexa";
   const showWelcome = !messages.length && !busy;
+  const cmdMatches = imageMode ? [] : matchCommands(input);
 
   const sidebar = (
     <View style={[s.side, wide ? s.sideWide : s.sideFloat]}>
@@ -556,6 +560,16 @@ function ChatScreen() {
                 </Pressable>
               </View>
             )}
+            {cmdMatches.length > 0 && (
+              <View style={s.cmdList}>
+                {cmdMatches.map((c) => (
+                  <Pressable key={c.name} style={s.cmdItem} onPress={() => setInput(`/${c.name} `)}>
+                    <Text style={s.cmdName}>{c.label}</Text>
+                    <Text style={s.cmdHint} numberOfLines={1}>{c.hint} — digite o tema depois</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
             <View style={s.box}>
               <Pressable style={s.mic} onPress={attach} disabled={busy}>
                 <Text style={{ fontSize: 18 }}>📎</Text>
@@ -568,7 +582,7 @@ function ChatScreen() {
                     ? "Descreva a imagem que você quer…"
                     : profile.videoMode
                     ? "Peça um roteiro, edição, ideia de vídeo…"
-                    : "Pergunte qualquer coisa…"
+                    : "Pergunte algo ou digite / para atalhos…"
                 }
                 placeholderTextColor={colors.muted}
                 style={s.input}
@@ -817,6 +831,20 @@ const s = StyleSheet.create({
     padding: 8,
     marginBottom: 8,
   },
+  cmdList: {
+    maxWidth: 760,
+    width: "100%",
+    alignSelf: "center",
+    backgroundColor: colors.panel,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 14,
+    padding: 6,
+    marginBottom: 8,
+  },
+  cmdItem: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10 },
+  cmdName: { color: colors.text, fontWeight: "700", fontSize: 14 },
+  cmdHint: { flex: 1, color: colors.muted, fontSize: 13 },
   attachThumb: { width: 48, height: 48, borderRadius: 10 },
   videoThumb: { backgroundColor: colors.panel2, alignItems: "center", justifyContent: "center" },
   attachText: { flex: 1, color: colors.text, fontSize: 14 },
