@@ -48,6 +48,7 @@ import {
 import Markdown from "./Markdown";
 import { expandCommand, matchCommands } from "./commands";
 import Settings from "./Settings";
+import { exportConversation } from "./exportChat";
 import { colors } from "./theme";
 
 const icon = require("../assets/icon.png");
@@ -350,6 +351,16 @@ function ChatScreen() {
     if (currentId === id) setCurrentId(next[0]?.id ?? null);
   }
 
+  async function exportChat() {
+    if (!current || !current.messages.length) return;
+    try {
+      const r = await exportConversation(current, aiName, profile.userName.trim() || "Você");
+      if (r === "copiado") showNotice("📋 Conversa copiada! É só colar onde quiser.");
+    } catch {
+      showNotice("Não consegui exportar a conversa agora.");
+    }
+  }
+
   function changeMode(m: Mode) {
     setMode(m);
     saveMode(m);
@@ -449,6 +460,11 @@ function ChatScreen() {
               <Image source={icon} style={s.brandImg} />
               <Text style={s.brandText} numberOfLines={1}>{aiName}</Text>
             </View>
+            {messages.length > 0 && (
+              <Pressable style={s.iconBtn} onPress={exportChat} accessibilityLabel="Exportar conversa">
+                <Text style={{ fontSize: 18 }}>📤</Text>
+              </Pressable>
+            )}
             <Pressable style={s.iconBtn} onPress={() => setShowSettings(true)}>
               <Text style={{ fontSize: 18 }}>⚙️</Text>
             </Pressable>
