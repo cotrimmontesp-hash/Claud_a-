@@ -243,23 +243,31 @@ function ChatScreen() {
     }
   }
 
-  async function send(textArg?: string) {
+  // Guarda o último pedido que falhou, para o botão "Tentar de novo".
+  const retryRef = useRef<{ convId: string; typed: string; att: Attachment | null; image: boolean } | null>(null);
+
+  async function send(textArg?: string, retry?: { att: Attachment | null; image: boolean }) {
     if (busy) {
       abortRef.current?.abort();
       return;
     }
-    const att = attachment;
+    const att = retry ? retry.att : attachment;
     let text = (textArg ?? input).trim();
     if (!text && !att) return;
     if (!text && att) text = att.kind === "video" ? "Analise esse vídeo e me diga como melhorar." : "O que você acha dessa imagem?";
-    const wantsImage = imageMode;
+    const wantsImage = retry ? retry.image : imageMode;
     const typed = text;
     if (!wantsImage) text = expandCommand(text);
-    setInput("");
+    if (!retry) setInput("");
     setAttachment(null);
     setError(null);
+    retryRef.current = null;
 
-    const base: Conversation = current ?? { id: newId(), title: "", messages: [] };
+    let base: Conversation = current ?? { id: newId(), title: "", messages: [] };
+    // Ao tentar de novo, tira a pergunta que ficou sem resposta (ela é enviada outra vez).
+    if (retry && base.messages[base.messages.length - 1]?.role === "user") {
+      base = { ...base, messages: base.messages.slice(0, -1) };
+    }
     const userMsg: ChatMessage = { role: "user", content: text };
     if (att) {
       userMsg.attachment = {
@@ -321,6 +329,7 @@ function ChatScreen() {
     } catch (e: any) {
       if (e?.name !== "AbortError" && !controller.signal.aborted) {
         setError(e?.message || "Não consegui responder agora.");
+        retryRef.current = { convId: conv.id, typed, att, image: wantsImage };
       }
       if (wantsImage) full = "";
     } finally {
@@ -336,6 +345,12 @@ function ChatScreen() {
       }
       scrollDown();
     }
+  }
+
+  function retryLast() {
+    const r = retryRef.current;
+    if (!r || busy || r.convId !== currentId) return;
+    send(r.typed, { att: r.att, image: r.image });
   }
 
   function newChat() {
@@ -521,7 +536,14 @@ function ChatScreen() {
                 {error && (
                   <View style={s.botRow}>
                     <Image source={icon} style={s.avatar} />
-                    <Text style={s.errText}>Ops, não consegui responder agora ({error}). Tente de novo.</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.errText}>Ops, não consegui responder agora ({error}).</Text>
+                      {retryRef.current?.convId === currentId && (
+                        <Pressable style={[s.tool, { alignSelf: "flex-start", marginTop: 6 }]} onPress={retryLast}>
+                          <Text style={s.toolText}>🔁 Tentar de novo</Text>
+                        </Pressable>
+                      )}
+                    </View>
                   </View>
                 )}
               </>
