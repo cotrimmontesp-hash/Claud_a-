@@ -32,6 +32,7 @@ import {
   scheduleReminder,
 } from "./reminders";
 import { API_URL } from "./api";
+import { searchConversations } from "./searchConvs";
 import {
   ChatMessage,
   Conversation,
@@ -82,6 +83,7 @@ function ChatScreen() {
   const [streaming, setStreaming] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sideOpen, setSideOpen] = useState(false);
+  const [convQuery, setConvQuery] = useState("");
   const [listening, setListening] = useState(false);
   const [profile, setProfile] = useState<Profile>(DEFAULT_PROFILE);
   const [showSettings, setShowSettings] = useState(false);
@@ -417,13 +419,34 @@ function ChatScreen() {
   const showWelcome = !messages.length && !busy;
   const cmdMatches = imageMode ? [] : matchCommands(input);
 
+  const convHits = searchConversations(convs, convQuery);
+
   const sidebar = (
     <View style={[s.side, wide ? s.sideWide : s.sideFloat]}>
       <Pressable style={s.newBtn} onPress={newChat}>
         <Text style={s.newBtnText}>＋ Nova conversa</Text>
       </Pressable>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 4 }}>
-        {convs.map((c) => (
+      {convs.length > 1 && (
+        <View style={s.searchBox}>
+          <Text style={s.searchIcon}>🔎</Text>
+          <TextInput
+            value={convQuery}
+            onChangeText={setConvQuery}
+            placeholder="Buscar nas conversas"
+            placeholderTextColor={colors.muted}
+            style={s.searchInput}
+            returnKeyType="search"
+          />
+          {!!convQuery && (
+            <Pressable hitSlop={10} onPress={() => setConvQuery("")}>
+              <Text style={s.convDel}>✕</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 4 }} keyboardShouldPersistTaps="handled">
+        {!!convQuery.trim() && !convHits.length && <Text style={s.searchEmpty}>Nada encontrado para “{convQuery.trim()}”.</Text>}
+        {convHits.map(({ conv: c, snippet }) => (
           <Pressable
             key={c.id}
             style={[s.conv, c.id === currentId && s.convOn]}
@@ -433,9 +456,16 @@ function ChatScreen() {
               setSideOpen(false);
             }}
           >
-            <Text numberOfLines={1} style={[s.convText, c.id === currentId && { color: colors.text }]}>
-              {c.title || "Nova conversa"}
-            </Text>
+            <View style={{ flex: 1 }}>
+              <Text numberOfLines={1} style={[s.convText, { flex: 0 }, c.id === currentId && { color: colors.text }]}>
+                {c.title || "Nova conversa"}
+              </Text>
+              {!!snippet && (
+                <Text numberOfLines={2} style={s.convSnippet}>
+                  {snippet}
+                </Text>
+              )}
+            </View>
             <Pressable hitSlop={10} onPress={() => deleteConv(c.id)}>
               <Text style={s.convDel}>✕</Text>
             </Pressable>
@@ -809,6 +839,21 @@ const s = StyleSheet.create({
   convOn: { backgroundColor: colors.panel2 },
   convText: { flex: 1, color: colors.muted, fontSize: 14 },
   convDel: { color: colors.muted, paddingHorizontal: 4 },
+  convSnippet: { color: colors.muted, fontSize: 12, marginTop: 2, opacity: 0.85 },
+  searchBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.panel2,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  searchIcon: { fontSize: 13 },
+  searchInput: { flex: 1, color: colors.text, fontSize: 14, paddingVertical: 8 },
+  searchEmpty: { color: colors.muted, fontSize: 13, padding: 10 },
   sideFoot: { color: colors.muted, fontSize: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border },
 
   header: {
