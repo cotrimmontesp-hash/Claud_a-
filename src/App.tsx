@@ -33,6 +33,7 @@ import {
 } from "./reminders";
 import { API_URL } from "./api";
 import { searchConversations } from "./searchConvs";
+import { extractHashtags } from "./hashtags";
 import {
   ChatMessage,
   Conversation,
@@ -731,6 +732,8 @@ function BotBubble({
   onFeedback?: (fb: Feedback | undefined, reason?: string) => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const [tagsCopied, setTagsCopied] = useState(false);
+  const tags = loading ? [] : extractHashtags(text);
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState("");
   return (
@@ -758,6 +761,18 @@ function BotBubble({
             >
               <Text style={s.toolText}>{copied ? "✅ Copiado" : "📋 Copiar"}</Text>
             </Pressable>
+            {tags.length > 0 && (
+              <Pressable
+                style={s.tool}
+                onPress={async () => {
+                  await Clipboard.setStringAsync(tags.join(" "));
+                  setTagsCopied(true);
+                  setTimeout(() => setTagsCopied(false), 1500);
+                }}
+              >
+                <Text style={s.toolText}>{tagsCopied ? "✅ Hashtags copiadas" : `#️⃣ Copiar hashtags (${tags.length})`}</Text>
+              </Pressable>
+            )}
             <Pressable
               style={s.tool}
               onPress={() => {
@@ -888,7 +903,7 @@ const s = StyleSheet.create({
   botRow: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
   avatar: { width: 30, height: 30, borderRadius: 9 },
   errText: { color: colors.error, flex: 1, paddingTop: 5, fontSize: 15 },
-  tools: { flexDirection: "row", gap: 6, marginTop: 8 },
+  tools: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 },
   tool: { backgroundColor: colors.panel, borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8 },
   toolText: { color: colors.muted, fontSize: 12 },
   chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, maxWidth: 760, width: "100%", alignSelf: "center", marginBottom: 8 },
