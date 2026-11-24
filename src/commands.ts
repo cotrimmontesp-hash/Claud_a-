@@ -48,6 +48,30 @@ export const COMMANDS: QuickCommand[] = [
     build: (t) =>
       `Sugira 5 títulos curtos (até 6 palavras) para colocar na capa de um vídeo sobre: ${sobre(t, "futebol")}.`,
   },
+  {
+    name: "hashtags",
+    label: "#️⃣ /hashtags",
+    hint: "15 hashtags para o post",
+    build: (t) =>
+      `Liste 15 hashtags para um vídeo de TikTok sobre: ${sobre(t, "futebol")}. ` +
+      "Misture 5 bem populares, 5 médias e 5 bem específicas do tema, a maioria em português. Coloque todas juntas em uma linha só, separadas por espaço, prontas para copiar.",
+  },
+  {
+    name: "curiosidade",
+    label: "🤯 /curiosidade",
+    hint: "curiosidade pronta para narrar",
+    build: (t) =>
+      `Me conte uma curiosidade real e surpreendente sobre: ${sobre(t, "futebol")}. ` +
+      "Escreva o texto pronto para eu narrar em um vídeo de até 40 segundos: comece com um gancho forte, explique de forma simples e termine com uma pergunta para o público comentar. Se não tiver certeza de que o fato é verdadeiro, avise.",
+  },
+  {
+    name: "edit",
+    label: "⚽ /edit",
+    hint: "plano de edit de futebol",
+    build: (t) =>
+      `Monte um plano de edit de futebol para TikTok sobre: ${sobre(t, "um craque do futebol")}. ` +
+      "Diga quais lances usar e em que ordem, o estilo de música (sem precisar ser uma música específica), onde colocar cortes na batida, efeitos e transições, e um texto curto para a tela.",
+  },
 ];
 
 const strip = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
