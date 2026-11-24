@@ -630,14 +630,14 @@ function ChatScreen() {
               </View>
             )}
             {cmdMatches.length > 0 && (
-              <View style={s.cmdList}>
+              <ScrollView style={s.cmdList} keyboardShouldPersistTaps="handled">
                 {cmdMatches.map((c) => (
                   <Pressable key={c.name} style={s.cmdItem} onPress={() => setInput(`/${c.name} `)}>
                     <Text style={s.cmdName}>{c.label}</Text>
                     <Text style={s.cmdHint} numberOfLines={1}>{c.hint} — digite o tema depois</Text>
                   </Pressable>
                 ))}
-              </View>
+              </ScrollView>
             )}
             <View style={s.box}>
               <Pressable style={s.mic} onPress={attach} disabled={busy}>
@@ -930,6 +930,7 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   cmdList: {
+    maxHeight: 220,
     maxWidth: 760,
     width: "100%",
     alignSelf: "center",
