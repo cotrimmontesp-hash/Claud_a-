@@ -34,6 +34,7 @@ import {
 import { API_URL } from "./api";
 import { searchConversations } from "./searchConvs";
 import { extractHashtags } from "./hashtags";
+import { estimateNarrationSeconds, formatDuration, textForSpeech } from "./narration";
 import {
   ChatMessage,
   Conversation,
@@ -734,6 +735,8 @@ function BotBubble({
   const [copied, setCopied] = useState(false);
   const [tagsCopied, setTagsCopied] = useState(false);
   const tags = loading ? [] : extractHashtags(text);
+  const [speaking, setSpeaking] = useState(false);
+  const narrSecs = loading ? 0 : estimateNarrationSeconds(text);
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState("");
   return (
@@ -774,14 +777,30 @@ function BotBubble({
               </Pressable>
             )}
             <Pressable
-              style={s.tool}
+              style={[s.tool, speaking && s.toolOn]}
               onPress={() => {
                 Speech.stop();
-                Speech.speak(text.replace(/[*#`_>]/g, ""), { language: "pt-BR" });
+                if (speaking) {
+                  setSpeaking(false);
+                  return;
+                }
+                setSpeaking(true);
+                const done = () => setSpeaking(false);
+                Speech.speak(textForSpeech(text), {
+                  language: "pt-BR",
+                  onDone: done,
+                  onStopped: done,
+                  onError: done,
+                });
               }}
             >
-              <Text style={s.toolText}>🔊 Ouvir</Text>
+              <Text style={s.toolText}>{speaking ? "⏹️ Parar" : "🔊 Ouvir"}</Text>
             </Pressable>
+            {narrSecs >= 5 && (
+              <View style={s.tool}>
+                <Text style={s.toolText}>⏱️ ~{formatDuration(narrSecs)} narrando</Text>
+              </View>
+            )}
             {onFeedback && (
               <>
                 <Pressable
