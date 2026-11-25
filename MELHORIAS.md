@@ -16,3 +16,4 @@ A tarefa diária lê este arquivo antes de começar, para não repetir ideias.
 - 2026-11-22: busca nas conversas — no menu ☰ apareceu o campo 🔎 "Buscar nas conversas"; acha pelo título ou por qualquer palavra dentro das mensagens (sem ligar para acento ou maiúscula) e mostra o trechinho onde ela aparece.
 - 2026-11-23: botão #️⃣ "Copiar hashtags" — quando a resposta da Nexa traz hashtags (ex.: legenda para TikTok), aparece um botão que copia só elas, sem repetir, prontas para colar no post.
 - 2026-11-24: novos comandos rápidos — /hashtags (15 hashtags misturando populares e específicas, numa linha só), /curiosidade (curiosidade pronta para narrar em até 40s) e /edit (plano de edit de futebol com lances, cortes na batida e transições).
+- 2026-11-25: tempo de narração — nas respostas da Nexa aparece "⏱️ ~38s narrando" (estimativa para saber se cabe no TikTok), e o 🔊 Ouvir agora vira ⏹️ Parar enquanto fala e lê sem emojis, hashtags e links.
