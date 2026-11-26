@@ -34,7 +34,7 @@ import {
 import { API_URL } from "./api";
 import { searchConversations } from "./searchConvs";
 import { extractHashtags } from "./hashtags";
-import { estimateNarrationSeconds, formatDuration, textForSpeech } from "./narration";
+import { estimateNarrationSeconds, formatDuration, scriptForNarration, textForSpeech } from "./narration";
 import {
   ChatMessage,
   Conversation,
@@ -736,6 +736,7 @@ function BotBubble({
   const [tagsCopied, setTagsCopied] = useState(false);
   const tags = loading ? [] : extractHashtags(text);
   const [speaking, setSpeaking] = useState(false);
+  const [scriptCopied, setScriptCopied] = useState(false);
   const narrSecs = loading ? 0 : estimateNarrationSeconds(text);
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState("");
@@ -800,6 +801,18 @@ function BotBubble({
               <View style={s.tool}>
                 <Text style={s.toolText}>⏱️ ~{formatDuration(narrSecs)} narrando</Text>
               </View>
+            )}
+            {narrSecs >= 5 && (
+              <Pressable
+                style={s.tool}
+                onPress={async () => {
+                  await Clipboard.setStringAsync(scriptForNarration(text));
+                  setScriptCopied(true);
+                  setTimeout(() => setScriptCopied(false), 1500);
+                }}
+              >
+                <Text style={s.toolText}>{scriptCopied ? "✅ Texto copiado" : "🎙️ Copiar para narrar"}</Text>
+              </Pressable>
             )}
             {onFeedback && (
               <>
