@@ -14,6 +14,19 @@ export function textForSpeech(text: string): string {
     .trim();
 }
 
+/**
+ * Texto pronto para colar na voz do CapCut/TikTok: igual ao da fala,
+ * mas mantendo uma frase/parágrafo por linha (fica mais fácil de editar).
+ */
+export function scriptForNarration(text: string): string {
+  return (text || "")
+    .replace(/```[\s\S]*?```/g, " ")
+    .split(/\n+/)
+    .map((line) => textForSpeech(line.replace(/^\s*(\d+[.)]|[-*•])\s+/, "")).replace(/\s+([!?.,;:])/g, "$1"))
+    .filter((line) => /[\p{L}\p{N}]/u.test(line))
+    .join("\n");
+}
+
 /** Narração calma em português: cerca de 150 palavras por minuto (2,5 por segundo). */
 const WORDS_PER_SECOND = 2.5;
 
