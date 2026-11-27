@@ -130,6 +130,18 @@ export default function Settings({ profile, onChange, onClose, reminders, onRemo
               />
             </View>
 
+            <View style={s.row}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.rowTitle}>🔠 Letra grande</Text>
+                <Text style={s.rowDesc}>Deixa o texto das conversas maior e mais fácil de ler</Text>
+              </View>
+              <Switch
+                value={profile.bigText}
+                onValueChange={(v) => set({ bigText: v })}
+                trackColor={{ true: colors.accent2, false: colors.panel2 }}
+              />
+            </View>
+
             <Text style={s.label}>Instruções extras (opcional)</Text>
             <TextInput
               value={profile.custom}

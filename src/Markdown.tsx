@@ -37,7 +37,15 @@ function renderInline(text: string, keyBase: string): React.ReactNode[] {
   return out;
 }
 
-export default function Markdown({ text }: { text: string }) {
+/** Aumenta fontSize/lineHeight de um estilo (usado na opção "Letra grande"). */
+function sc(style: any, k: number): any {
+  if (k === 1) return style;
+  const f = StyleSheet.flatten(style) || {};
+  return [style, { fontSize: f.fontSize ? f.fontSize * k : undefined, lineHeight: f.lineHeight ? f.lineHeight * k : undefined }];
+}
+
+export default function Markdown({ text, scale = 1 }: { text: string; scale?: number }) {
+  const k = scale;
   const blocks: React.ReactNode[] = [];
   const parts = text.split("```");
   let key = 0;
@@ -47,7 +55,7 @@ export default function Markdown({ text }: { text: string }) {
       const code = part.replace(/^\w*\n/, "").replace(/\n$/, "");
       blocks.push(
         <View key={key++} style={s.pre}>
-          <Text style={s.preText} selectable>{code}</Text>
+          <Text style={sc(s.preText, k)} selectable>{code}</Text>
         </View>
       );
       return;
@@ -58,7 +66,7 @@ export default function Markdown({ text }: { text: string }) {
       if (!para.length) return;
       const t = para.join("\n");
       blocks.push(
-        <Text key={key++} style={s.p} selectable>
+        <Text key={key++} style={sc(s.p, k)} selectable>
           {renderInline(t, `p${key}`)}
         </Text>
       );
@@ -69,22 +77,22 @@ export default function Markdown({ text }: { text: string }) {
       if ((m = line.match(/^#{1,3}\s+(.*)/))) {
         flush();
         blocks.push(
-          <Text key={key++} style={s.h} selectable>{renderInline(m[1], `h${key}`)}</Text>
+          <Text key={key++} style={sc(s.h, k)} selectable>{renderInline(m[1], `h${key}`)}</Text>
         );
       } else if ((m = line.match(/^\s*[-*•]\s+(.*)/))) {
         flush();
         blocks.push(
           <View key={key++} style={s.li}>
-            <Text style={s.bullet}>•</Text>
-            <Text style={s.liText} selectable>{renderInline(m[1], `l${key}`)}</Text>
+            <Text style={sc(s.bullet, k)}>•</Text>
+            <Text style={sc(s.liText, k)} selectable>{renderInline(m[1], `l${key}`)}</Text>
           </View>
         );
       } else if ((m = line.match(/^\s*(\d+)[.)]\s+(.*)/))) {
         flush();
         blocks.push(
           <View key={key++} style={s.li}>
-            <Text style={s.num}>{m[1]}.</Text>
-            <Text style={s.liText} selectable>{renderInline(m[2], `n${key}`)}</Text>
+            <Text style={sc(s.num, k)}>{m[1]}.</Text>
+            <Text style={sc(s.liText, k)} selectable>{renderInline(m[2], `n${key}`)}</Text>
           </View>
         );
       } else if (!line.trim()) {
