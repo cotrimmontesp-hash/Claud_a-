@@ -21,6 +21,8 @@ export type Profile = {
   custom: string;
   memoryOn: boolean;
   videoMode: boolean;
+  /** letras maiores nas conversas */
+  bigText: boolean;
   memories: string[];
   dislikes: string[];
   likes: string[];
@@ -34,6 +36,7 @@ export const DEFAULT_PROFILE: Profile = {
   custom: "",
   memoryOn: true,
   videoMode: false,
+  bigText: false,
   memories: [],
   dislikes: [],
   likes: [],

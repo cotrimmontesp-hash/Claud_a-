@@ -4,7 +4,7 @@ Cada melhoria automática diária é anotada aqui (data, o que mudou, por quê).
 A tarefa diária lê este arquivo antes de começar, para não repetir ideias.
 
 ## Ideias para próximas melhorias
-- Modo escuro/claro e tamanho de letra
+- Modo escuro/claro
 - Editor: mais presets e transições, prévia antes de gerar
 - Melhor tratamento de erros e mensagens quando o plano grátis estoura (o botão 🔁 já ajuda)
 
@@ -18,3 +18,4 @@ A tarefa diária lê este arquivo antes de começar, para não repetir ideias.
 - 2026-11-24: novos comandos rápidos — /hashtags (15 hashtags misturando populares e específicas, numa linha só), /curiosidade (curiosidade pronta para narrar em até 40s) e /edit (plano de edit de futebol com lances, cortes na batida e transições).
 - 2026-11-25: tempo de narração — nas respostas da Nexa aparece "⏱️ ~38s narrando" (estimativa para saber se cabe no TikTok), e o 🔊 Ouvir agora vira ⏹️ Parar enquanto fala e lê sem emojis, hashtags e links.
 - 2026-11-26: botão 🎙️ "Copiar para narrar" — nas respostas que dão para narrar, copia só o texto falado (sem emojis, hashtags, negrito ou numeração), uma frase por linha, pronto para colar na voz do CapCut/TikTok.
+- 2026-11-27: opção 🔠 "Letra grande" — em ⚙️ Personalidade, um botão deixa o texto das conversas (suas mensagens e as respostas da Nexa) cerca de 25% maior, mais fácil de ler no celular.

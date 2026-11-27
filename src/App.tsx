@@ -553,18 +553,19 @@ function ChatScreen() {
               <>
                 {messages.map((m, i) =>
                   m.role === "user" ? (
-                    <UserBubble key={i} text={m.content} attachment={m.attachment} />
+                    <UserBubble key={i} text={m.content} attachment={m.attachment} big={profile.bigText} />
                   ) : (
                     <BotBubble
                       key={i}
                       text={m.content}
                       image={m.image}
                       feedback={m.feedback}
+                      big={profile.bigText}
                       onFeedback={(fb, reason) => giveFeedback(i, fb, reason)}
                     />
                   )
                 )}
-                {busy && <BotBubble text={streaming || ""} loading />}
+                {busy && <BotBubble text={streaming || ""} loading big={profile.bigText} />}
                 {error && (
                   <View style={s.botRow}>
                     <Image source={icon} style={s.avatar} />
@@ -703,7 +704,15 @@ function ChatScreen() {
   );
 }
 
-function UserBubble({ text, attachment }: { text: string; attachment?: { kind: "image" | "video"; uri: string } }) {
+function UserBubble({
+  text,
+  attachment,
+  big,
+}: {
+  text: string;
+  attachment?: { kind: "image" | "video"; uri: string };
+  big?: boolean;
+}) {
   return (
     <View style={s.userRow}>
       <View style={s.userBubble}>
@@ -713,7 +722,7 @@ function UserBubble({ text, attachment }: { text: string; attachment?: { kind: "
           ) : (
             <Text style={s.sentFile}>{attachment.kind === "video" ? "🎞️ Vídeo enviado" : "📷 Foto enviada"}</Text>
           ))}
-        <Text style={s.userText} selectable>{text}</Text>
+        <Text style={[s.userText, big && s.userTextBig]} selectable>{text}</Text>
       </View>
     </View>
   );
@@ -725,10 +734,12 @@ function BotBubble({
   loading,
   feedback,
   onFeedback,
+  big,
 }: {
   text: string;
   image?: string;
   loading?: boolean;
+  big?: boolean;
   feedback?: Feedback;
   onFeedback?: (fb: Feedback | undefined, reason?: string) => void;
 }) {
@@ -752,7 +763,7 @@ function BotBubble({
             </Pressable>
           </View>
         )}
-        {text ? <Markdown text={text} /> : <ActivityIndicator color={colors.muted} style={{ alignSelf: "flex-start" }} />}
+        {text ? <Markdown text={text} scale={big ? 1.25 : 1} /> : <ActivityIndicator color={colors.muted} style={{ alignSelf: "flex-start" }} />}
         {!loading && !!text && (
           <View style={s.tools}>
             <Pressable
@@ -932,6 +943,7 @@ const s = StyleSheet.create({
     maxWidth: "88%",
   },
   userText: { color: colors.text, fontSize: 15.5, lineHeight: 22 },
+  userTextBig: { fontSize: 19.5, lineHeight: 27 },
   botRow: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
   avatar: { width: 30, height: 30, borderRadius: 9 },
   errText: { color: colors.error, flex: 1, paddingTop: 5, fontSize: 15 },
